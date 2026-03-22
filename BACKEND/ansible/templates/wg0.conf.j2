@@ -1,0 +1,8 @@
+[Interface]
+PrivateKey = {{ server_private_key_raw.stdout }}
+Address = {{ internal_network }}
+ListenPort = {{ wireguard_port }}
+PostUp = ufw route allow in on wg0 out on eth0
+PostUp = iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE
+PostDown = ufw route delete allow in on wg0 out on eth0
+PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
