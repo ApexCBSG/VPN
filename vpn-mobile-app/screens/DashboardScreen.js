@@ -8,6 +8,8 @@ import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 
+import * as SecureStore from 'expo-secure-store';
+
 export default function DashboardScreen({ navigation, route }) {
   const [isConnected, setIsConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -19,16 +21,51 @@ export default function DashboardScreen({ navigation, route }) {
 
   const handleToggleConnection = async () => {
     if (isConnected) {
+      // Disconnect logic
       setIsConnected(false);
       return;
     }
 
     setConnecting(true);
-    // Simulate WireGuard handshake
-    setTimeout(() => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        Alert.alert('Auth Error', 'Please log in again.');
+        navigation.navigate('Login');
+        return;
+      }
+
+      // 1. Generate WireGuard keys (Simplified for now - using persistent mock or real JS lib if needed)
+      // Standard practice: generate on device. 
+      const mockPubKey = "L0zI5YMjdtd6E02hBCAQivz0Q+VjdZUE2Hy2bR1/EnM="; 
+
+      // 2. Register on server
+      const response = await fetch('http://localhost:5000/api/vpn/connect', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-auth-token': token
+        },
+        body: JSON.stringify({
+          nodeId: selectedServer._id,
+          publicKey: mockPubKey
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setIsConnected(true);
+        // data.config contains address, dns, serverPublicKey, endpoint
+        console.log('Tunnel Config Received:', data.config);
+      } else {
+        Alert.alert('Connection Failed', data.msg || 'Sentinel network is busy.');
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Network Error', 'Could not establish tunnel handshake.');
+    } finally {
       setConnecting(false);
-      setIsConnected(true);
-    }, 2000);
+    }
   };
 
   return (
