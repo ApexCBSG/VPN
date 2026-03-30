@@ -15,6 +15,9 @@ import MapScreen from './screens/MapScreen';
 import UsageScreen from './screens/UsageScreen';
 import SpeedTestScreen from './screens/SpeedTestScreen';
 import ServerListScreen from './screens/ServerListScreen';
+import VerifyEmailScreen from './screens/VerifyEmailScreen';
+import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
+import AccountScreen from './screens/AccountScreen';
 import { theme } from './styles/theme';
 
 const Stack = createStackNavigator();
@@ -54,6 +57,7 @@ function MainTabs() {
       <Tab.Screen name="Map" component={MapScreen} />
       <Tab.Screen name="Stats" component={UsageScreen} />
       <Tab.Screen name="Speed" component={SpeedTestScreen} />
+      <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
 }
@@ -88,6 +92,8 @@ export default function App() {
         >
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
           <Stack.Screen name="Main" component={MainTabs} />
           <Stack.Screen name="Servers" component={ServerListScreen} />
         </Stack.Navigator>

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { ShieldCheck, Mail, Lock } from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
+import { API_URL } from '../config';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ export default function LoginScreen({ navigation }) {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -32,6 +33,9 @@ export default function LoginScreen({ navigation }) {
         // Store Token
         await SecureStore.setItemAsync('userToken', data.token);
         navigation.navigate('Main');
+      } else if (response.status === 401 && data.email) {
+        Alert.alert('Verification Required', 'Please verify your email to access the network.');
+        navigation.navigate('VerifyEmail', { email: data.email });
       } else {
         Alert.alert('Login Failed', data.msg || 'Invalid Credentials');
       }
@@ -55,16 +59,16 @@ export default function LoginScreen({ navigation }) {
               <ShieldCheck size={40} color={theme.colors.primary} strokeWidth={1.5} />
             </View>
             <Text style={styles.brandName}>SENTINEL</Text>
-            <Text style={styles.brandTagline}>VOICE OF THE SECURE LAYER</Text>
+            <Text style={styles.brandTagline}>ENTERPRISE-GRADE PRIVACY SOLUTIONS</Text>
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>IDENTIFICATION</Text>
+            <Text style={styles.label}>SIGN IN</Text>
             <View style={styles.inputWrapper}>
               <Mail size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
-                placeholder="ACCESS EMAIL" 
+                placeholder="Email Address" 
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 autoCapitalize="none"
                 value={email}
@@ -77,13 +81,20 @@ export default function LoginScreen({ navigation }) {
               <Lock size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
-                placeholder="SECURITY KEY" 
+                placeholder="Password" 
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 secureTextEntry
                 value={password}
                 onChangeText={setPassword}
               />
             </View>
+
+            <TouchableOpacity 
+              style={styles.forgotPassword}
+              onPress={() => navigation.navigate('ForgotPassword')}
+            >
+              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity 
               activeOpacity={0.8}
@@ -94,7 +105,7 @@ export default function LoginScreen({ navigation }) {
               {loading ? (
                 <ActivityIndicator color={theme.colors.background} />
               ) : (
-                <Text style={styles.loginButtonText}>ESTABLISH CONNECTION</Text>
+                <Text style={styles.loginButtonText}>LOGIN TO ACCOUNT</Text>
               )}
             </TouchableOpacity>
 
@@ -103,7 +114,7 @@ export default function LoginScreen({ navigation }) {
               onPress={() => navigation.navigate('Register')}
             >
               <Text style={styles.secondaryText}>
-                No credentials? <Text style={styles.linkText}>Register node</Text>
+                No account? <Text style={styles.linkText}>Create one here</Text>
               </Text>
             </TouchableOpacity>
           </View>
@@ -217,5 +228,15 @@ const styles = StyleSheet.create({
   linkText: {
     color: theme.colors.primary,
     fontWeight: '700',
+  },
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: theme.spacing.lg,
+  },
+  forgotPasswordText: {
+    color: theme.colors.onSurfaceVariant,
+    fontSize: 12,
+    fontFamily: theme.fonts.body,
+    fontWeight: '500',
   },
 });

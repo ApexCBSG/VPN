@@ -4,6 +4,7 @@ const { Client } = require('ssh2'); // Need to install ssh2
 
 // Helper function to run SSH command
 const runSshCommand = (node, command) => {
+  console.log(`SSH: Connecting to ${node.ipAddress} as root...`);
   return new Promise((resolve, reject) => {
     const conn = new Client();
     conn.on('ready', () => {
@@ -25,7 +26,7 @@ const runSshCommand = (node, command) => {
       host: node.ipAddress,
       port: 22,
       username: 'root',
-      password: process.env.VPS_PASSWORD || 'MadMan12321@##**s' // Use env or default for now
+      password: process.env.VPS_PASSWORD
     });
   });
 };
@@ -76,7 +77,7 @@ exports.connectNode = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server Error during handshake');
+    res.status(500).json({ msg: 'Server connectivity error' });
   }
 };
 

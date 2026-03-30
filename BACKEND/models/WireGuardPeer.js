@@ -11,10 +11,6 @@ const WireGuardPeerSchema = new mongoose.Schema({
     ref: 'Node',
     required: true
   },
-  privateKey: {
-    type: String,
-    required: true
-  },
   publicKey: {
     type: String,
     required: true

@@ -1,15 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const { register, login } = require('../controllers/authController');
+const { 
+  register, 
+  login, 
+  verifyEmail, 
+  forgotPassword, 
+  resetPassword 
+} = require('../controllers/authController');
 
 // @route   POST api/auth/register
-// @desc    Register user
-// @access  Public
 router.post('/register', register);
 
+// @route   POST api/auth/verify
+router.post('/verify', verifyEmail);
+
 // @route   POST api/auth/login
-// @desc    Login user & get token
-// @access  Public
 router.post('/login', login);
+
+// @route   POST api/auth/forgotpassword
+router.post('/forgotpassword', forgotPassword);
+
+// @route   PUT api/auth/resetpassword/:resettoken
+router.put('/resetpassword/:resettoken', resetPassword);
 
 module.exports = router;

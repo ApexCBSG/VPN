@@ -88,7 +88,7 @@ export default function SpeedTestScreen() {
       </View>
 
       <Text style={styles.disclaimer}>
-        Measurements are conducted against our closest node in USA - NEW YORK to ensure optimal accuracy.
+        Measurements are conducted against our closest server in USA - NEW YORK to ensure optimal accuracy.
       </Text>
     </SafeAreaView>
   );

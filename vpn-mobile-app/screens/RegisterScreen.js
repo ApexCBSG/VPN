@@ -1,10 +1,43 @@
-import React from 'react';
-import { StyleSheet, Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { ShieldPlus, Mail, Lock, User } from 'lucide-react-native';
+import { API_URL } from '../config';
 
 export default function RegisterScreen({ navigation }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!email || !password) {
+      Alert.alert('Missing Info', 'Please provide a valid email and security key.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        Alert.alert('Verification Sent', 'Please check your email for the 6-digit code.');
+        navigation.navigate('VerifyEmail', { email });
+      } else {
+        Alert.alert('Registration Failed', data.msg || 'Encryption initialization error.');
+      }
+    } catch (error) {
+      Alert.alert('Network Error', 'Could not reach the Sentinel network.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView 
@@ -19,27 +52,20 @@ export default function RegisterScreen({ navigation }) {
             >
               <ShieldPlus size={24} color={theme.colors.primary} />
             </TouchableOpacity>
-            <Text style={styles.title}>Initialize Node</Text>
-            <Text style={styles.subtitle}>Join the encrypted network layer</Text>
+            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.subtitle}>Join Sentinel and secure your connection</Text>
           </View>
 
           <View style={styles.form}>
             <View style={styles.inputWrapper}>
-              <User size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
-              <TextInput 
-                style={styles.input} 
-                placeholder="FULL IDENTIFIER" 
-                placeholderTextColor={theme.colors.onSurfaceVariant}
-              />
-            </View>
-
-            <View style={styles.inputWrapper}>
               <Mail size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
-                placeholder="ACCESS EMAIL" 
+                placeholder="Email Address" 
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
               />
             </View>
 
@@ -47,18 +73,25 @@ export default function RegisterScreen({ navigation }) {
               <Lock size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
               <TextInput 
                 style={styles.input} 
-                placeholder="SECURITY KEY" 
+                placeholder="Password" 
                 placeholderTextColor={theme.colors.onSurfaceVariant}
                 secureTextEntry
+                value={password}
+                onChangeText={setPassword}
               />
             </View>
 
             <TouchableOpacity 
               activeOpacity={0.8}
               style={styles.actionButton}
-              onPress={() => navigation.navigate('Main')}
+              onPress={handleRegister}
+              disabled={loading}
             >
-              <Text style={styles.actionButtonText}>AUTHORIZE ACCOUNT</Text>
+              {loading ? (
+                <ActivityIndicator color={theme.colors.background} />
+              ) : (
+                <Text style={styles.actionButtonText}>CREATE ACCOUNT</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity 
@@ -66,7 +99,7 @@ export default function RegisterScreen({ navigation }) {
               onPress={() => navigation.navigate('Login')}
             >
               <Text style={styles.secondaryText}>
-                Existing node? <Text style={styles.linkText}>Access terminal</Text>
+                Already have an account? <Text style={styles.linkText}>Sign In</Text>
               </Text>
             </TouchableOpacity>
           </View>

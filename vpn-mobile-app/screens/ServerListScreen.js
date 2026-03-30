@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, TouchableOpacity, FlatList, TextInput, Activity
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { Globe, Search, ChevronRight, Activity } from 'lucide-react-native';
+import { API_URL } from '../config';
 
 export default function ServerListScreen({ navigation }) {
   const [servers, setServers] = useState([]);
@@ -15,16 +16,16 @@ export default function ServerListScreen({ navigation }) {
 
   const fetchServers = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/nodes');
+      const response = await fetch(`${API_URL}/nodes`);
       const data = await response.json();
       if (response.ok) {
         setServers(data);
       } else {
-        Alert.alert('Error', 'Failed to fetch node registry.');
+        Alert.alert('Error', 'Failed to load server network.');
       }
     } catch (error) {
       console.error(error);
-      // Alert.alert('Network Error', 'Could not reach the Sentinel network.');
+      // Alert.alert('Network Error', 'Could not reach the VPN network.');
     } finally {
       setLoading(false);
     }
@@ -39,7 +40,10 @@ export default function ServerListScreen({ navigation }) {
     <TouchableOpacity 
       activeOpacity={0.7}
       style={styles.serverCard} 
-      onPress={() => navigation.navigate('Shield', { selectedServer: item })}
+      onPress={() => navigation.navigate('Main', { 
+        screen: 'Shield', 
+        params: { selectedServer: item } 
+      })}
     >
       <View style={styles.cardInfo}>
         <View style={styles.iconContainer}>
@@ -64,8 +68,8 @@ export default function ServerListScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Global Nodes</Text>
-        <Text style={styles.subtitle}>Select a high-speed sentinel</Text>
+        <Text style={styles.title}>Network Locations</Text>
+        <Text style={styles.subtitle}>Select a high-performance server</Text>
         
         <View style={styles.searchContainer}>
           <Search size={20} color={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
@@ -90,7 +94,7 @@ export default function ServerListScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 50 }}>
-              No active nodes found in this sector.
+              No active servers found in this region.
             </Text>
           }
         />

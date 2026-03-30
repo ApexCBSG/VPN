@@ -24,13 +24,13 @@ export default function UsageScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.title}>Network Usage</Text>
-          <Text style={styles.subtitle}>Traffic analytics and session logs</Text>
+          <Text style={styles.title}>Data Usage</Text>
+          <Text style={styles.subtitle}>Traffic analytics and connection history</Text>
         </View>
 
         
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>DATA THROUGHPUT (GB)</Text>
+          <Text style={styles.chartTitle}>DATA TRANSFERRED (GB)</Text>
           <LineChart
             data={chartData}
             width={width - theme.spacing.lg * 2}
@@ -73,7 +73,7 @@ export default function UsageScreen() {
                 <Clock size={16} color={theme.colors.onSurfaceVariant} />
               </View>
               <View style={styles.historyContent}>
-                <Text style={styles.historyTitle}>USA - New York Node</Text>
+                <Text style={styles.historyTitle}>USA - New York Server</Text>
                 <Text style={styles.historyMeta}>2h 15m • 4.2 GB Transferred</Text>
               </View>
               <Text style={styles.historyDate}>Mar 22</Text>

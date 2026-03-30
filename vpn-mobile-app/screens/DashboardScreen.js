@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Dimensions, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { Settings, Activity, Globe, Power } from 'lucide-react-native';
@@ -9,6 +9,9 @@ import { BlurView } from 'expo-blur';
 const { width } = Dimensions.get('window');
 
 import * as SecureStore from 'expo-secure-store';
+
+import { generateKeyPair } from '../utils/wireguard';
+import { API_URL } from '../config';
 
 export default function DashboardScreen({ navigation, route }) {
   const [isConnected, setIsConnected] = useState(false);
@@ -21,7 +24,7 @@ export default function DashboardScreen({ navigation, route }) {
 
   const handleToggleConnection = async () => {
     if (isConnected) {
-      // Disconnect logic
+      // Disconnect logic (Simplified)
       setIsConnected(false);
       return;
     }
@@ -35,30 +38,53 @@ export default function DashboardScreen({ navigation, route }) {
         return;
       }
 
-      // 1. Generate WireGuard keys (Simplified for now - using persistent mock or real JS lib if needed)
-      // Standard practice: generate on device. 
-      const mockPubKey = "L0zI5YMjdtd6E02hBCAQivz0Q+VjdZUE2Hy2bR1/EnM="; 
+      // 1. Auto-select server if none is selected
+      let targetServer = selectedServer;
+      if (!targetServer._id) {
+        try {
+          const nodeRes = await fetch(`${API_URL}/nodes`);
+          const nodes = await nodeRes.json();
+          if (nodeRes.ok && nodes.length > 0) {
+            targetServer = nodes[0]; // Pick the first available node
+            // Optional: update route params or local state to show selection
+          } else {
+            Alert.alert('Network Error', 'No active VPN servers found.');
+            return;
+          }
+        } catch (nodeErr) {
+          Alert.alert('Network Error', 'Could not reach server registry.');
+          return;
+        }
+      }
 
-      // 2. Register on server
-      const response = await fetch('http://localhost:5000/api/vpn/connect', {
+      // 2. Generate real WireGuard keys on device
+      let clientPubKey = await SecureStore.getItemAsync('wg_public_key');
+      if (!clientPubKey) {
+        const { publicKey, privateKey } = generateKeyPair();
+        await SecureStore.setItemAsync('wg_public_key', publicKey);
+        await SecureStore.setItemAsync('wg_private_key', privateKey);
+        clientPubKey = publicKey;
+      }
+
+      // 3. Register on server
+      const response = await fetch(`${API_URL}/vpn/connect`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-auth-token': token
         },
         body: JSON.stringify({
-          nodeId: selectedServer._id,
-          publicKey: mockPubKey
+          nodeId: targetServer._id,
+          publicKey: clientPubKey
         })
       });
 
       const data = await response.json();
       if (response.ok) {
         setIsConnected(true);
-        // data.config contains address, dns, serverPublicKey, endpoint
-        console.log('Tunnel Config Received:', data.config);
+        console.log('Handshake Success. Internal IP:', data.config.address);
       } else {
-        Alert.alert('Connection Failed', data.msg || 'Sentinel network is busy.');
+        Alert.alert('Connection Failed', data.msg || 'Server is busy.');
       }
     } catch (error) {
       console.error(error);
@@ -87,7 +113,7 @@ export default function DashboardScreen({ navigation, route }) {
 
         <View style={styles.statusContainer}>
           <View style={[styles.statusChip, { backgroundColor: isConnected ? theme.colors.tertiary : theme.colors.error }]}>
-            <Text style={styles.statusChipText}>{isConnected ? 'SECURE' : 'UNPROTECTED'}</Text>
+            <Text style={styles.statusChipText}>{isConnected ? 'SECURED' : 'UNSECURED'}</Text>
           </View>
           <Text style={styles.displayStatus}>
             {isConnected ? 'Connected' : 'Disconnected'}
@@ -114,7 +140,7 @@ export default function DashboardScreen({ navigation, route }) {
                ) : (
                  <Power size={50} color={theme.colors.background} strokeWidth={2} />
                )}
-               <Text style={styles.buttonLabel}>{isConnected ? 'DISCONNECT' : 'PROTECT'}</Text>
+               <Text style={styles.buttonLabel}>{isConnected ? 'DISCONNECT' : 'CONNECT'}</Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
