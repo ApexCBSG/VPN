@@ -131,20 +131,26 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && (
-              <div className="bg-[#FFF4F2] text-[#E03131] text-[13px] font-semibold p-4 rounded-2xl border border-[#FFE3E0] animate-in shake duration-500 flex items-start space-x-3">
-                <Info size={16} className="mt-0.5 shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+            {/* Error Message Container — Fixed height to prevent layout jump */}
+            <div className="min-h-[60px] flex items-center">
+              {error ? (
+                <div className="w-full bg-[#FFF4F2] text-[#E03131] text-[13px] font-semibold p-4 rounded-2xl border border-[#FFE3E0] animate-in slide-in-from-top-2 fade-in duration-300 flex items-start space-x-3">
+                  <Info size={16} className="mt-0.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              ) : null}
+            </div>
 
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-[#1A252E] text-white py-4.5 rounded-2xl font-extrabold text-[15px] hover:bg-black transition-all shadow-2xl shadow-[#1A252E]/20 flex items-center justify-center space-x-3 disabled:opacity-50"
+              className="w-full bg-[#1A252E] text-white py-4.5 rounded-2xl font-extrabold text-[15px] hover:bg-black active:scale-[0.98] transition-all shadow-2xl shadow-[#1A252E]/20 flex items-center justify-center space-x-3 disabled:opacity-70"
             >
               {loading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span className="opacity-80">Authenticating...</span>
+                </div>
               ) : (
                 <>
                    <span>Access Console</span>
