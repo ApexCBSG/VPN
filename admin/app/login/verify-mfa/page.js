@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "react-router-dom"; // Note: This check failed in my head, I should use next/navigation
+import { useRouter } from "next/navigation";
 import { Lock, Loader2, Shield, ArrowLeft, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import api from "../../../lib/api";
@@ -11,12 +11,7 @@ export default function VerifyMfaPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [userId, setUserId] = useState(null);
-  
-  // FIX: Using correct next/navigation
-  let router;
-  try {
-     router = require('next/navigation').useRouter();
-  } catch(e) {}
+  const router = useRouter();
 
   useEffect(() => {
     const id = localStorage.getItem("pendingMfaUserId");
