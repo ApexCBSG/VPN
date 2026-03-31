@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, FlatList, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
-import { Globe, Search, ChevronRight, Activity } from 'lucide-react-native';
+import { Globe, Search, ChevronRight, Activity, Lock } from 'lucide-react-native';
 import { API_URL } from '../config';
+import { useSubscription } from '../context/SubscriptionContext';
 
 export default function ServerListScreen({ navigation }) {
   const [servers, setServers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const { entitlements } = useSubscription();
 
   useEffect(() => {
     fetchServers();
@@ -25,10 +27,23 @@ export default function ServerListScreen({ navigation }) {
       }
     } catch (error) {
       console.error(error);
-      // Alert.alert('Network Error', 'Could not reach the VPN network.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleServerSelect = (item) => {
+    const isPremium = item.allowedTiers.includes('premium') && !item.allowedTiers.includes('free');
+    
+    if (isPremium && !entitlements.premium) {
+      navigation.navigate('Paywall');
+      return;
+    }
+
+    navigation.navigate('Main', { 
+      screen: 'Shield', 
+      params: { selectedServer: item } 
+    });
   };
 
   const filteredServers = servers.filter(s => 
@@ -36,34 +51,43 @@ export default function ServerListScreen({ navigation }) {
     s.city.toLowerCase().includes(search.toLowerCase())
   );
 
-  const renderItem = ({ item }) => (
-    <TouchableOpacity 
-      activeOpacity={0.7}
-      style={styles.serverCard} 
-      onPress={() => navigation.navigate('Main', { 
-        screen: 'Shield', 
-        params: { selectedServer: item } 
-      })}
-    >
-      <View style={styles.cardInfo}>
-        <View style={styles.iconContainer}>
-          <Globe size={20} color={theme.colors.primary} strokeWidth={1.5} />
+  const renderItem = ({ item }) => {
+    const isPremium = item.allowedTiers.includes('premium') && !item.allowedTiers.includes('free');
+
+    return (
+      <TouchableOpacity 
+        activeOpacity={0.7}
+        style={styles.serverCard} 
+        onPress={() => handleServerSelect(item)}
+      >
+        <View style={styles.cardInfo}>
+          <View style={styles.iconContainer}>
+            <Globe size={20} color={theme.colors.primary} strokeWidth={1.5} />
+          </View>
+          <View style={styles.textContainer}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.serverTitle}>{item.name}</Text>
+              {isPremium && (
+                <View style={styles.proBadge}>
+                   <Lock size={10} color="#FFD700" fill="#FFD700" />
+                   <Text style={styles.proText}>PRO</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.serverMeta}>{item.city} • {item.countryCode}</Text>
+          </View>
         </View>
-        <View style={styles.textContainer}>
-          <Text style={styles.serverTitle}>{item.name}</Text>
-          <Text style={styles.serverMeta}>{item.city} • {item.countryCode}</Text>
+        
+        <View style={styles.loadContainer}>
+          <Activity size={14} color={item.load < 50 ? theme.colors.tertiary : theme.colors.error} />
+          <Text style={[styles.loadText, { color: item.load < 50 ? theme.colors.tertiary : theme.colors.error }]}>
+            {item.load}%
+          </Text>
+          <ChevronRight size={18} color={theme.colors.onSurfaceVariant} />
         </View>
-      </View>
-      
-      <View style={styles.loadContainer}>
-        <Activity size={14} color={item.load < 50 ? theme.colors.tertiary : theme.colors.error} />
-        <Text style={[styles.loadText, { color: item.load < 50 ? theme.colors.tertiary : theme.colors.error }]}>
-          {item.load}%
-        </Text>
-        <ChevronRight size={18} color={theme.colors.onSurfaceVariant} />
-      </View>
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -180,6 +204,24 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurfaceVariant,
     marginTop: 2,
+  },
+  proBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#FFD700',
+    gap: 4,
+  },
+  proText: {
+    fontSize: 8,
+    fontFamily: theme.fonts.label,
+    fontWeight: '900',
+    color: '#FFD700',
+    letterSpacing: 0.5,
   },
   loadContainer: {
     flexDirection: 'row',

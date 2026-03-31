@@ -1,12 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Plan = require('../models/Plan');
 
+// @route   GET api/payment/offerings
+// @desc    Get active subscription plans for mobile app
+router.get('/offerings', async (req, res) => {
+  try {
+    const plans = await Plan.find({ isActive: true }).sort({ sortOrder: 1 });
+    res.json(plans);
+  } catch (err) {
+    res.status(500).json({ msg: 'Server error fetching offerings' });
+  }
+});
 
-
+// @route   POST api/payment/revenuecat-webhook
 router.post('/revenuecat-webhook', async (req, res) => {
   const { event } = req.body;
-  
   
   const authHeader = req.headers['authorization'];
   if (authHeader !== `Bearer ${process.env.REVENUECAT_WEBHOOK_TOKEN}`) {
@@ -32,7 +42,6 @@ router.post('/revenuecat-webhook', async (req, res) => {
       
       case 'EXPIRATION':
       case 'CANCELLATION':
-        
         user.tier = 'free';
         break;
       

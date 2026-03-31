@@ -118,7 +118,14 @@ exports.login = async (req, res) => {
     }
 
     const token = generateToken(user.id);
-    res.json({ token });
+    res.json({ 
+      token,
+      user: {
+        _id: user._id,
+        email: user.email,
+        tier: user.tier
+      }
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

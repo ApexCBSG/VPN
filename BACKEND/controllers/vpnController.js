@@ -1,7 +1,7 @@
 const Node = require('../models/Node');
 const WireGuardPeer = require('../models/WireGuardPeer');
+const UsageLog = require('../models/UsageLog');
 const { Client } = require('ssh2'); 
-
 
 const runSshCommand = (node, command) => {
   console.log(`SSH: Connecting to ${node.ipAddress} as root...`);
@@ -39,10 +39,8 @@ exports.connectNode = async (req, res) => {
     const node = await Node.findById(nodeId);
     if (!node) return res.status(404).json({ msg: 'Node not found' });
 
-    
+    // 1. Peer Management
     let peer = await WireGuardPeer.findOne({ userId, nodeId });
-    
-    
     let internalIp;
     if (!peer) {
       const peerCount = await WireGuardPeer.countDocuments({ nodeId });
@@ -58,15 +56,27 @@ exports.connectNode = async (req, res) => {
       internalIp = peer.internalIp;
     }
 
-    
-    
+    // 2. Real-time Infrastructure Update (SSH Handshake)
     const sshCommand = `wg set wg0 peer ${publicKey} allowed-ips ${internalIp}/32`;
     await runSshCommand(node, sshCommand);
+
+    // 3. Telemetry Activation
+    const log = new UsageLog({
+      userId,
+      nodeId,
+      action: 'connected',
+      bytesIn: 0,
+      bytesOut: 0
+    });
+    await log.save();
+
+    // 4. Update Node Load (+5% simulated per user)
+    await Node.findByIdAndUpdate(nodeId, { $inc: { load: 5 } });
 
     await peer.save();
 
     res.json({
-      msg: 'Connection registry update successful',
+      msg: 'Tunnel established successfully',
       config: {
         address: `${internalIp}/32`,
         dns: '1.1.1.1, 8.8.8.8',
@@ -76,12 +86,37 @@ exports.connectNode = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: 'Server connectivity error' });
+    console.error('VPN Connection Error:', err);
+    res.status(500).json({ msg: 'Handshake protocol failure' });
   }
 };
 
 exports.disconnectNode = async (req, res) => {
-  
-  res.json({ msg: 'Disconnect logic pending' });
+  const { nodeId } = req.body;
+  const userId = req.user.id;
+
+  try {
+    const node = await Node.findById(nodeId);
+    if (!node) return res.status(404).json({ msg: 'Node not found' });
+
+    // 1. Find active session log
+    const lastLog = await UsageLog.findOne({ userId, nodeId, action: 'connected' }).sort({ createdAt: -1 });
+    
+    if (lastLog) {
+      const duration = Math.round((new Date() - lastLog.createdAt) / 1000);
+      lastLog.action = 'disconnected';
+      lastLog.duration = duration;
+      lastLog.bytesIn = Math.floor(Math.random() * 500000); // Simulated download
+      lastLog.bytesOut = Math.floor(Math.random() * 200000); // Simulated upload
+      await lastLog.save();
+    }
+
+    // 2. Decrement Node Load
+    await Node.findByIdAndUpdate(nodeId, { $inc: { load: -5 } });
+
+    res.json({ msg: 'Tunnel disconnected', duration: lastLog?.duration || 0 });
+  } catch (err) {
+    console.error('VPN Disconnect Error:', err);
+    res.status(500).json({ msg: 'Disconnect protocol error' });
+  }
 };

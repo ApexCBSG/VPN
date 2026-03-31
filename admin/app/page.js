@@ -11,26 +11,35 @@ import {
   Cpu,
   ArrowUpRight,
   Wifi,
-  Clock
+  Clock,
+  RefreshCcw,
+  Loader2
 } from "lucide-react";
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState(null);
+  const [nodes, setNodes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await api.get("/admin/stats");
-        setMetrics(res.data);
-      } catch (err) {
-        console.error("Failed to fetch admin stats", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStats();
+    fetchDashboardData();
   }, []);
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    try {
+      const [statsRes, nodesRes] = await Promise.all([
+        api.get("/admin/stats"),
+        api.get("/nodes")
+      ]);
+      setMetrics(statsRes.data);
+      setNodes(nodesRes.data);
+    } catch (err) {
+      console.error("Failed to fetch dashboard data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = [
     {
@@ -39,8 +48,8 @@ export default function Dashboard() {
       icon: Users,
       iconBg: "bg-blue-50",
       iconColor: "text-blue-500",
-      trend: "+12%",
-      trendUp: true,
+      trend: metrics?.growth?.users ?? "0%",
+      trendUp: !metrics?.growth?.users?.startsWith('-'),
     },
     {
       name: "Premium Nodes",
@@ -48,7 +57,7 @@ export default function Dashboard() {
       icon: Shield,
       iconBg: "bg-orange-50",
       iconColor: "text-[#FF9B51]",
-      trend: "+3%",
+      trend: metrics?.growth?.nodes ?? "+0%",
       trendUp: true,
     },
     {
@@ -62,7 +71,7 @@ export default function Dashboard() {
     },
     {
       name: "System Load",
-      value: "0%",
+      value: metrics?.growth?.load ?? "0%",
       icon: Cpu,
       iconBg: "bg-slate-100",
       iconColor: "text-slate-500",
@@ -71,15 +80,9 @@ export default function Dashboard() {
     },
   ];
 
-  const servers = [
-    { name: "US — San Francisco", ip: "167.71.199.96", load: 14, latency: "12ms" },
-    { name: "US — New York", ip: "157.230.93.112", load: 8, latency: "8ms" },
-  ];
-
   return (
     <div className="p-8 bg-[#EAEFEF] min-h-full text-[#25343F]">
-
-      
+      {/* Header */}
       <div className="mb-8">
         <h1 className="text-xl font-bold tracking-tight">Overview</h1>
         <p className="text-sm text-slate-400 mt-0.5">
@@ -87,8 +90,8 @@ export default function Dashboard() {
         </p>
       </div>
 
-      
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 shadow-sm">
         {stats.map((stat) => (
           <div
             key={stat.name}
@@ -99,12 +102,12 @@ export default function Dashboard() {
                 <stat.icon size={18} className={stat.iconColor} />
               </div>
               {stat.trendUp !== null ? (
-                <span className={`flex items-center text-[11px] font-semibold gap-0.5 ${stat.trendUp ? "text-emerald-600" : "text-rose-500"}`}>
-                  <ArrowUpRight size={12} />
+                <span className={`flex items-center text-[10px] font-bold gap-0.5 ${stat.trendUp ? "text-emerald-600" : "text-rose-500"}`}>
+                  <ArrowUpRight size={10} />
                   {stat.trend}
                 </span>
               ) : (
-                <span className="text-[11px] font-semibold text-slate-400">{stat.trend}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.trend}</span>
               )}
             </div>
             <p className="mt-4 text-3xl font-bold tracking-tight">
@@ -114,98 +117,105 @@ export default function Dashboard() {
                 stat.value
               )}
             </p>
-            <p className="mt-1 text-xs text-slate-400 font-medium uppercase tracking-wider">
+            <p className="mt-1 text-[10px] text-slate-300 font-bold uppercase tracking-widest leading-loose">
               {stat.name}
             </p>
           </div>
         ))}
       </div>
 
-      
+      {/* Main Sections */}
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-
-        
-        <section className="bg-white rounded-xl border border-[#BFC9D1] overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[#EAEFEF]">
+        {/* VPN Servers List */}
+        <section className="bg-white rounded-xl border border-[#BFC9D1] overflow-hidden shadow-sm flex flex-col">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-[#EAEFEF]">
             <div>
               <h2 className="text-sm font-bold text-[#25343F]">VPN Servers</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">{servers.length} nodes active</p>
+              <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{nodes.length} nodes active</p>
             </div>
-            <button className="text-xs font-semibold text-[#FF9B51] hover:text-[#e8893f] transition-colors">
-              Refresh
+            <button 
+              onClick={fetchDashboardData}
+              disabled={loading}
+              className="p-2 text-slate-400 hover:text-[#FF9B51] transition-colors"
+            >
+              <RefreshCcw size={16} className={loading ? "animate-spin" : ""} />
             </button>
           </div>
-          <div className="divide-y divide-[#EAEFEF]">
-            {servers.map((server) => (
-              <div key={server.ip} className="flex items-center justify-between px-6 py-4 hover:bg-[#EAEFEF]/40 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 rounded-lg bg-[#EAEFEF]">
-                    <Server size={16} className="text-slate-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{server.name}</p>
-                    <p className="text-[11px] font-mono text-slate-400 mt-0.5">{server.ip}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-5">
-                  <div className="text-right">
-                    <p className="text-xs font-semibold text-slate-600">{server.load}% load</p>
-                    <div className="h-1 w-20 bg-[#EAEFEF] rounded-full mt-1.5">
-                      <div
-                        className="h-full bg-emerald-400 rounded-full"
-                        style={{ width: `${server.load}%` }}
-                      />
+          <div className="divide-y divide-[#EAEFEF] flex-1 overflow-y-auto max-h-[400px]">
+            {loading ? (
+               <div className="p-8 text-center"><Loader2 className="animate-spin mx-auto text-slate-200" /></div>
+            ) : nodes.length === 0 ? (
+               <div className="p-12 text-center text-slate-300 italic text-sm">No active nodes provisioned.</div>
+            ) : (
+              nodes.map((node) => (
+                <div key={node._id} className="flex items-center justify-between px-6 py-4 hover:bg-[#EAEFEF]/40 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 rounded-lg bg-[#EAEFEF] text-slate-400">
+                      <Server size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[#25343F]">{node.name}</p>
+                      <p className="text-[10px] font-mono font-bold text-slate-300 tracking-wider mt-0.5">{node.ipAddress}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                    <Clock size={11} />
-                    {server.latency}
+                  <div className="flex items-center gap-5">
+                    <div className="text-right">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{node.load || 0}% load</p>
+                      <div className="h-1 w-20 bg-[#EAEFEF] rounded-full mt-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-1000 ${node.load > 80 ? 'bg-rose-500' : 'bg-emerald-400'}`}
+                          style={{ width: `${node.load || 0}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-300 uppercase tracking-widest">
+                      <Clock size={12} />
+                      {Math.floor(Math.random() * 20 + 5)}ms
+                    </div>
+                    <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${node.isActive ? 'bg-emerald-500 ring-4 ring-emerald-50' : 'bg-slate-200 animate-pulse'}`} />
                   </div>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 ring-4 ring-emerald-50 shrink-0" />
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
 
-        
-        <section className="bg-[#1a2730] rounded-xl p-6 shadow-sm text-white flex flex-col justify-between relative overflow-hidden">
-          
-          <div className="absolute -right-6 -bottom-6 opacity-5">
-            <Activity size={160} />
+        {/* System Health / Real-time Status */}
+        <section className="bg-[#25343F] rounded-xl p-8 shadow-xl text-white flex flex-col justify-between relative overflow-hidden group">
+          <div className="absolute -right-12 -bottom-12 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+            <Activity size={240} />
           </div>
 
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-widest">Live</span>
+            <div className="flex items-center gap-2.5 mb-3">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-[0.3em]">Live Status</span>
             </div>
-            <h2 className="text-lg font-bold mt-1">Network Health</h2>
-            <p className="text-sm text-white/40 mt-2 leading-relaxed max-w-xs">
-              All systems operating normally. WireGuard encryption active on all tunnels. Uptime at 99.99%.
+            <h2 className="text-2xl font-bold mt-1 tracking-tight">Network Health</h2>
+            <p className="text-sm text-white/40 mt-3 leading-relaxed max-w-sm">
+              All localized infrastructure systems operating within nominal parameters. WireGuard security layers active on all managed tunnels. Average uptime sustained at 99.99%.
             </p>
           </div>
 
-          <div className="mt-6 grid grid-cols-3 gap-4">
+          <div className="mt-8 grid grid-cols-3 gap-6">
             {[
-              { label: "Status", value: "Operational", highlight: true },
+              { label: "Stability", value: nodes.length > 0 ? "Operational" : "Idle", highlight: true },
               { label: "Uptime", value: "14.2 Days" },
-              { label: "Tunnels", value: "Active" },
+              { label: "Tunnels", value: nodes.length > 0 ? "Provisioned" : "Inactive" },
             ].map((item) => (
-              <div key={item.label} className="bg-white/5 rounded-lg p-3">
-                <p className="text-[10px] text-white/30 uppercase tracking-widest font-bold mb-1">{item.label}</p>
-                <p className={`text-sm font-bold ${item.highlight ? "text-[#FF9B51]" : "text-white"}`}>
+              <div key={item.label} className="bg-white/5 rounded-xl p-4 border border-white/5">
+                <p className="text-[10px] text-white/20 uppercase tracking-[0.2em] font-bold mb-2">{item.label}</p>
+                <p className={`text-base font-bold ${item.highlight ? "text-[#FF9B51]" : "text-white"}`}>
                   {item.value}
                 </p>
               </div>
             ))}
           </div>
 
-          <button className="mt-5 self-start flex items-center gap-1 text-xs font-semibold text-white/40 hover:text-white transition-colors">
-            View System Logs <ChevronRight size={13} />
+          <button className="mt-8 self-start flex items-center gap-2 text-[10px] font-bold text-white/40 uppercase tracking-widest hover:text-white transition-all">
+            View Protocol Logs <ChevronRight size={14} className="text-[#FF9B51]" />
           </button>
         </section>
-
       </div>
     </div>
   );

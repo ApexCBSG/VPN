@@ -5,11 +5,13 @@ import { theme } from '../styles/theme';
 import { ShieldCheck, Mail, Lock } from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
 import { API_URL } from '../config';
+import { useSubscription } from '../context/SubscriptionContext';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { syncIdentity } = useSubscription();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -32,6 +34,12 @@ export default function LoginScreen({ navigation }) {
       if (response.ok) {
         // Store Token
         await SecureStore.setItemAsync('userToken', data.token);
+        
+        // Sync with RevenueCat
+        if (data.user && data.user._id) {
+          await syncIdentity(data.user._id);
+        }
+
         navigation.navigate('Main');
       } else if (response.status === 401 && data.email) {
         Alert.alert('Verification Required', 'Please verify your email to access the network.');

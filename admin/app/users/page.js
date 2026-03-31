@@ -22,6 +22,7 @@ import {
   ChevronDown
 } from "lucide-react";
 import { format } from "date-fns";
+import toast from "react-hot-toast";
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -95,13 +96,15 @@ export default function UserManagement() {
     try {
       if (modalMode === "create") {
         await api.post("/admin/users", formData);
+        toast.success("User successfully enrolled.");
       } else {
         await api.put(`/admin/users/${currentUser._id}`, formData);
+        toast.success("Profile synchronized.");
       }
       setShowModal(false);
       fetchUsers();
     } catch (err) {
-      alert(err.response?.data?.msg || "Operation failed");
+      toast.error(err.response?.data?.msg || "Operational failure.");
     }
   };
 
@@ -109,9 +112,10 @@ export default function UserManagement() {
     if (window.confirm("Account Termination: Are you certain you wish to permanently remove this user? This action cannot be reversed.")) {
       try {
         await api.delete(`/admin/users/${id}`);
+        toast.success("Account terminated.", { icon: '🗑️' });
         fetchUsers();
       } catch (err) {
-        alert("Failed to delete user");
+        toast.error("Termination failed.");
       }
     }
   };
@@ -124,22 +128,26 @@ export default function UserManagement() {
   });
 
   return (
-    <div className="p-8 bg-[#EAEFEF] min-h-full text-[#25343F]">
-      <header className="mb-10 flex flex-col md:flex-row md:items-end md:justify-between space-y-4 md:space-y-0">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-          <p className="text-slate-500 mt-1">Enroll, modify, and monitor global account access and membership tiers.</p>
+    <div className="p-4 md:p-8 bg-[#EAEFEF] min-h-full text-[#25343F]">
+      <header className="mb-8 flex flex-col md:flex-row md:items-end md:justify-between space-y-4 md:space-y-0">
+        <div className="max-w-2xl">
+          <div className="flex items-center gap-2 text-[10px] font-bold text-[#FF9B51] uppercase tracking-[0.2em] mb-2">
+             <Users size={14} />
+             Identity Management
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">User Management</h1>
+          <p className="text-sm text-slate-500 mt-1 leading-relaxed">Enroll, modify, and monitor global account access and membership tiers across the secure network.</p>
         </div>
         <button 
           onClick={handleOpenCreate}
-          className="flex items-center px-5 py-2.5 bg-[#FF9B51] text-white rounded-lg font-bold text-sm hover:bg-[#ff8a35] transition-all shadow-md shadow-orange-500/20"
+          className="flex items-center justify-center px-6 py-3 bg-[#FF9B51] text-white rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-[#ff8a35] transition-all shadow-xl shadow-orange-500/20"
         >
-          <Plus size={18} className="mr-2" /> Enroll New User
+          <Plus size={16} className="mr-2" /> Enroll New User
         </button>
       </header>
 
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
         {[
           { label: "Total Users", val: stats.total, icon: Users, col: "text-blue-600", bg: "bg-blue-50" },
           { label: "Premium Tiers", val: stats.premium, icon: Shield, col: "text-[#FF9B51]", bg: "bg-orange-50" },

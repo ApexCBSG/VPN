@@ -18,12 +18,12 @@ import ServerListScreen from './screens/ServerListScreen';
 import VerifyEmailScreen from './screens/VerifyEmailScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import AccountScreen from './screens/AccountScreen';
+import PaywallScreen from './screens/PaywallScreen';
 import { theme } from './styles/theme';
+import { SubscriptionProvider } from './context/SubscriptionContext';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
-
-
 
 function MainTabs() {
   return (
@@ -76,28 +76,31 @@ export default function App() {
     }
   }, [fontsLoaded, fontError]);
 
-  
-  
-  
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
-      <NavigationContainer>
-        <Stack.Navigator 
-          initialRouteName="Login"
-          screenOptions={{
-            headerShown: false,
-            cardStyle: { backgroundColor: theme.colors.background }
-          }}
-        >
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-          <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
-          <Stack.Screen name="Main" component={MainTabs} />
-          <Stack.Screen name="Servers" component={ServerListScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
+      <SubscriptionProvider>
+        <NavigationContainer>
+          <Stack.Navigator 
+            initialRouteName="Login"
+            screenOptions={{
+              headerShown: false,
+              cardStyle: { backgroundColor: theme.colors.background }
+            }}
+          >
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} />
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen name="Servers" component={ServerListScreen} />
+            <Stack.Screen name="Paywall" component={PaywallScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SubscriptionProvider>
     </SafeAreaProvider>
   );
 }

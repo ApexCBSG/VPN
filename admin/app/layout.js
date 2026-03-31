@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "react-hot-toast";
 import "./globals.css";
 import Sidebar from "../components/Sidebar";
 import TopBar from "../components/TopBar";
@@ -19,9 +20,10 @@ const geistMono = Geist_Mono({
 
 export default function RootLayout({ children }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const isLoginPage = pathname === "/login";
+  const isLoginPage = pathname === "/login" || pathname === "/forgot-password" || pathname === "/login/verify-mfa";
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
@@ -30,23 +32,46 @@ export default function RootLayout({ children }) {
     }
   }, [isLoginPage, router]);
 
+  // Close mobile menu on navigation
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="flex h-screen overflow-hidden bg-[#EAEFEF] text-[#25343F]">
+        <Toaster position="top-right" toastOptions={{
+           style: {
+             borderRadius: '12px',
+             background: '#25343F',
+             color: '#fff',
+             fontSize: '13px',
+             padding: '12px 24px',
+           },
+           success: {
+              iconTheme: {
+                primary: '#FF9B51',
+                secondary: '#fff',
+              },
+           }
+        }} />
         {!isLoginPage && (
           <Sidebar 
             isCollapsed={isCollapsed} 
             setIsCollapsed={setIsCollapsed} 
+            mobileMenuOpen={mobileMenuOpen}
+            setMobileMenuOpen={setMobileMenuOpen}
           />
         )}
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
           {!isLoginPage && (
             <TopBar 
                isCollapsed={isCollapsed} 
                pathname={pathname}
+               setMobileMenuOpen={setMobileMenuOpen}
             />
           )}
           <main className="flex-1 overflow-y-auto overflow-x-hidden">
