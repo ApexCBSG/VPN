@@ -21,7 +21,7 @@ export default function NodeManagement() {
   const [nodes, setNodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null); // stores nodeId to delete
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null); 
   const [newNode, setNewNode] = useState({ name: "", countryCode: "US", city: "", ipAddress: "", publicKey: "placeholder" });
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -178,7 +178,7 @@ export default function NodeManagement() {
         </div>
       )}
 
-      {/* Enroll Modal */}
+      
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#25343F]/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-[#BFC9D1]">
@@ -247,7 +247,7 @@ export default function NodeManagement() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#25343F]/80 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
            <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 border border-rose-100 text-center">

@@ -25,7 +25,7 @@ const UsageLogSchema = new mongoose.Schema({
     default: 0
   },
   duration: {
-    type: Number, // In seconds
+    type: Number, 
     default: 0
   }
 }, { timestamps: true });

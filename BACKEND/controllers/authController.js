@@ -5,7 +5,7 @@ const qrcode = require('qrcode');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
 
-// Helper for JWT
+
 const generateToken = (id) => {
   return jwt.sign({ user: { id } }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
@@ -112,7 +112,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ msg: 'Invalid Credentials' });
     }
 
-    // If 2FA is enabled, don't issue token yet
+    
     if (user.twoFactorEnabled) {
       return res.json({ mfaRequired: true, userId: user._id });
     }
@@ -201,8 +201,8 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// @route   POST api/auth/login/2fa
-// @desc    Verify 6-digit TOTP code during login
+
+
 exports.login2FA = async (req, res) => {
   const { userId, code } = req.body;
   try {
@@ -224,14 +224,14 @@ exports.login2FA = async (req, res) => {
   }
 };
 
-// @route   POST api/auth/2fa/setup
-// @desc    Generate 2FA secret and QR code (Requires Auth)
+
+
 exports.generate2FA = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     const secret = speakeasy.generateSecret({ name: `Sentinel Admin (${user.email})` });
     
-    // Store secret temporarily but don't enable yet
+    
     user.twoFactorSecret = secret.base32;
     await user.save();
 
@@ -242,8 +242,8 @@ exports.generate2FA = async (req, res) => {
   }
 };
 
-// @route   POST api/auth/2fa/verify
-// @desc    Verify and enable 2FA (Requires Auth)
+
+
 exports.verifyAndEnable2FA = async (req, res) => {
   const { code } = req.body;
   try {

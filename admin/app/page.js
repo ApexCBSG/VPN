@@ -82,7 +82,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 bg-[#EAEFEF] min-h-full text-[#25343F]">
-      {/* Header */}
+      
       <div className="mb-8">
         <h1 className="text-xl font-bold tracking-tight">Overview</h1>
         <p className="text-sm text-slate-400 mt-0.5">
@@ -90,7 +90,7 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Stats Grid */}
+      
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 shadow-sm">
         {stats.map((stat) => (
           <div
@@ -124,9 +124,9 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Main Sections */}
+      
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* VPN Servers List */}
+        
         <section className="bg-white rounded-xl border border-[#BFC9D1] overflow-hidden shadow-sm flex flex-col">
           <div className="flex items-center justify-between px-6 py-5 border-b border-[#EAEFEF]">
             <div>
@@ -180,7 +180,7 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* System Health / Real-time Status */}
+        
         <section className="bg-[#25343F] rounded-xl p-8 shadow-xl text-white flex flex-col justify-between relative overflow-hidden group">
           <div className="absolute -right-12 -bottom-12 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
             <Activity size={240} />

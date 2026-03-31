@@ -8,7 +8,7 @@ const Setting = require('../models/Setting');
 const UsageLog = require('../models/UsageLog');
 const Plan = require('../models/Plan');
 
-// @route   GET api/admin/me
+
 router.get('/me', [auth, admin], async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
@@ -18,7 +18,7 @@ router.get('/me', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   PUT api/admin/profile
+
 router.put('/profile', [auth, admin], async (req, res) => {
   try {
     const { email } = req.body;
@@ -44,7 +44,7 @@ router.put('/profile', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   POST api/admin/change-password
+
 router.post('/change-password', [auth, admin], async (req, res) => {
   try {
     const { currentPassword, newPassword, confirmPassword } = req.body;
@@ -81,7 +81,7 @@ router.post('/change-password', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   GET api/admin/stats
+
 router.get('/stats', [auth, admin], async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -90,7 +90,7 @@ router.get('/stats', [auth, admin], async (req, res) => {
     const activeNodesCount = await Node.countDocuments({ isActive: true });
     const activeConnections = await WireGuardPeer.countDocuments();
     
-    // Calculate Monthly Growth for Users
+    
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const sixtyDaysAgo = new Date();
@@ -169,7 +169,7 @@ router.post('/users', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   PUT api/admin/users/:id
+
 router.put('/users/:id', [auth, admin], async (req, res) => {
   try {
     const { email, role, tier, expiryDate, isVerified, password } = req.body;
@@ -192,7 +192,7 @@ router.put('/users/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   DELETE api/admin/users/:id
+
 router.delete('/users/:id', [auth, admin], async (req, res) => {
   try {
     await User.findByIdAndDelete(req.params.id);
@@ -202,7 +202,7 @@ router.delete('/users/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   POST api/admin/nodes
+
 router.post('/nodes', [auth, admin], async (req, res) => {
   try {
     const newNode = new Node(req.body);
@@ -213,7 +213,7 @@ router.post('/nodes', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   PUT api/admin/nodes/:id
+
 router.put('/nodes/:id', [auth, admin], async (req, res) => {
   try {
     const node = await Node.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -223,7 +223,7 @@ router.put('/nodes/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   DELETE api/admin/nodes/:id
+
 router.delete('/nodes/:id', [auth, admin], async (req, res) => {
   try {
     const node = await Node.findById(req.params.id);
@@ -236,7 +236,7 @@ router.delete('/nodes/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   GET api/admin/plans
+
 router.get('/plans', [auth, admin], async (req, res) => {
   try {
     const plans = await Plan.find().sort({ sortOrder: 1 });
@@ -246,7 +246,7 @@ router.get('/plans', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   POST api/admin/plans
+
 router.post('/plans', [auth, admin], async (req, res) => {
   try {
     const plan = new Plan(req.body);
@@ -257,7 +257,7 @@ router.post('/plans', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   PUT api/admin/plans/:id
+
 router.put('/plans/:id', [auth, admin], async (req, res) => {
   try {
     const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -267,7 +267,7 @@ router.put('/plans/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   DELETE api/admin/plans/:id
+
 router.delete('/plans/:id', [auth, admin], async (req, res) => {
   try {
     await Plan.findByIdAndDelete(req.params.id);
@@ -277,7 +277,7 @@ router.delete('/plans/:id', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   GET api/admin/settings
+
 router.get('/settings', [auth, admin], async (req, res) => {
   try {
     let settings = await Setting.find();
@@ -300,7 +300,7 @@ router.get('/settings', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   PUT api/admin/settings/:key
+
 router.put('/settings/:key', [auth, admin], async (req, res) => {
   try {
     const { value } = req.body;
@@ -315,10 +315,10 @@ router.put('/settings/:key', [auth, admin], async (req, res) => {
   }
 });
 
-// @route   GET api/admin/analytics
+
 router.get('/analytics', [auth, admin], async (req, res) => {
   try {
-    // 1. Real Growth Velocity
+    
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const fourteenDaysAgo = new Date();
@@ -338,16 +338,16 @@ router.get('/analytics', [auth, admin], async (req, res) => {
       : 0;
     const avgConnectionMinutes = Math.round(avgDurationSeconds / 60);
 
-    // 3. Real Throughput (Aggregation of Bytes in last 1 hour)
+    
     const oneHourAgo = new Date();
     oneHourAgo.setHours(oneHourAgo.getHours() - 1);
     const recentLogs = await UsageLog.find({ createdAt: { $gte: oneHourAgo } });
     const totalBytes = recentLogs.reduce((acc, log) => acc + (log.bytesIn || 0) + (log.bytesOut || 0), 0);
     const throughputMbps = (totalBytes * 8) / (3600 * 1000000); // Approximation in Mbps
 
-    // 4. Node Latency (Avg from active nodes)
+    
     const activeNodes = await Node.find({ isActive: true });
-    // If we had a latency field we'd avg it, otherwise use load-scaled placeholder for production fidelity
+    
     const avgLatency = activeNodes.length > 0 
       ? Math.round(activeNodes.reduce((acc, n) => acc + (n.load > 80 ? 45 : 12), 0) / activeNodes.length)
       : 0;

@@ -78,7 +78,7 @@ export default function AnalyticsPage() {
         </p>
       </header>
 
-      {/* Top Level Metrics - Powered by Real Data */}
+      
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
          {[
            { label: "Growth Velocity", val: metrics.growthVelocity, icon: ArrowUpRight, col: "text-emerald-500", bg: "bg-emerald-50" },
@@ -100,7 +100,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-         {/* User Growth Chart */}
+         
          <div className="bg-white p-8 rounded-3xl border border-[#BFC9D1] shadow-sm">
             <div className="flex items-center justify-between mb-8">
                <div>
@@ -158,7 +158,7 @@ export default function AnalyticsPage() {
             </div>
          </div>
 
-         {/* Connection Usage Load */}
+         
          <div className="bg-white p-8 rounded-3xl border border-[#BFC9D1] shadow-sm">
             <div className="flex items-center justify-between mb-8">
                <div>

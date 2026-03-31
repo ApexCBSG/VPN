@@ -39,7 +39,7 @@ exports.connectNode = async (req, res) => {
     const node = await Node.findById(nodeId);
     if (!node) return res.status(404).json({ msg: 'Node not found' });
 
-    // 1. Peer Management
+    
     let peer = await WireGuardPeer.findOne({ userId, nodeId });
     let internalIp;
     if (!peer) {
@@ -56,11 +56,11 @@ exports.connectNode = async (req, res) => {
       internalIp = peer.internalIp;
     }
 
-    // 2. Real-time Infrastructure Update (SSH Handshake)
+    
     const sshCommand = `wg set wg0 peer ${publicKey} allowed-ips ${internalIp}/32`;
     await runSshCommand(node, sshCommand);
 
-    // 3. Telemetry Activation
+    
     const log = new UsageLog({
       userId,
       nodeId,
@@ -70,7 +70,7 @@ exports.connectNode = async (req, res) => {
     });
     await log.save();
 
-    // 4. Update Node Load (+5% simulated per user)
+    
     await Node.findByIdAndUpdate(nodeId, { $inc: { load: 5 } });
 
     await peer.save();
@@ -99,7 +99,7 @@ exports.disconnectNode = async (req, res) => {
     const node = await Node.findById(nodeId);
     if (!node) return res.status(404).json({ msg: 'Node not found' });
 
-    // 1. Find active session log
+    
     const lastLog = await UsageLog.findOne({ userId, nodeId, action: 'connected' }).sort({ createdAt: -1 });
     
     if (lastLog) {
@@ -107,11 +107,11 @@ exports.disconnectNode = async (req, res) => {
       lastLog.action = 'disconnected';
       lastLog.duration = duration;
       lastLog.bytesIn = Math.floor(Math.random() * 500000); // Simulated download
-      lastLog.bytesOut = Math.floor(Math.random() * 200000); // Simulated upload
+      lastLog.bytesOut = Math.floor(Math.random() * 200000); 
       await lastLog.save();
     }
 
-    // 2. Decrement Node Load
+    
     await Node.findByIdAndUpdate(nodeId, { $inc: { load: -5 } });
 
     res.json({ msg: 'Tunnel disconnected', duration: lastLog?.duration || 0 });

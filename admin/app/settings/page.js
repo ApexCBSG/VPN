@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 2FA Setup states
+  
   const [mfaStep, setMfaStep] = useState("initial"); 
   const [qrCode, setQrCode] = useState(null);
   const [mfaCode, setMfaCode] = useState("");
@@ -112,7 +112,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 md:p-8 bg-[#EAEFEF] min-h-full text-[#25343F]">
-      {/* Header Section */}
+      
       <header className="mb-10 lg:flex lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <div className="flex items-center gap-2 text-[10px] font-bold text-[#FF9B51] uppercase tracking-[0.2em] mb-3">
@@ -126,10 +126,10 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      {/* Main Settings Container */}
+      
       <div className="max-w-7xl mx-auto flex flex-col xl:flex-row gap-8 pb-12">
         
-        {/* Navigation Sidebar */}
+        
         <aside className="w-full xl:w-72 shrink-0">
           <div className="bg-white rounded-2xl border border-[#BFC9D1] p-3 shadow-sm sticky top-8">
             <nav className="space-y-1">
@@ -161,12 +161,12 @@ export default function SettingsPage() {
           </div>
         </aside>
 
-        {/* Dynamic content Section */}
+        
         <div className="flex-1 min-w-0">
            <div className="bg-white rounded-3xl border border-[#BFC9D1] shadow-2xl shadow-blue-900/5 overflow-hidden flex flex-col h-full min-h-[600px]">
               
               <div className="flex-1 p-6 md:p-10">
-                 {/* Security Tab */}
+                 
                  {activeTab === "mfa" && (
                    <div className="max-w-4xl space-y-10 animate-in fade-in slide-in-from-right-4 duration-300">
                       <div>
@@ -252,7 +252,7 @@ export default function SettingsPage() {
                    </div>
                  )}
 
-                 {/* Alerts Tab - Wired to Dynamic Data */}
+                 
                  {activeTab === "alerts" && (
                    <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                       <div className="flex items-center gap-4 p-6 bg-[#25343F] rounded-3xl text-white shadow-xl">
@@ -292,7 +292,7 @@ export default function SettingsPage() {
                    </div>
                  )}
 
-                 {/* System Info Tab */}
+                 
                  {activeTab === "system" && (
                    <div className="max-w-4xl space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                       <div className="p-8 border border-blue-100 bg-blue-50/30 rounded-3xl">
@@ -319,7 +319,7 @@ export default function SettingsPage() {
                  )}
               </div>
 
-              {/* Action Bar */}
+              
               <div className="bg-slate-50/80 backdrop-blur-md px-10 py-6 border-t border-[#BFC9D1] flex justify-end items-center">
                  <button 
                   onClick={() => toast.success("Configuration hierarchy committed.")}

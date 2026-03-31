@@ -34,7 +34,7 @@ export default function LoginPage() {
         setError("Access denied. Your administrative profile requires further authorization.");
       }
     } catch (err) {
-      // Use professional error language
+      
       const msg = err.response?.data?.msg;
       if (msg === "Invalid Credentials") {
         setError("Invalid email or password. Please verify your credentials and try again.");
@@ -48,7 +48,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen bg-[#F0F4F7] text-[#1A252E] font-sans">
-      {/* Left Pane — Strategic Branding */}
+      
       <div className="hidden lg:flex w-5/12 bg-white flex-col items-center justify-center p-16 border-r border-[#D1D9E0] relative overflow-hidden">
          <div className="absolute top-0 left-0 w-full h-1 bg-[#1A252E]" />
          <div className="max-w-md w-full text-center space-y-8 z-10">
@@ -71,11 +71,11 @@ export default function LoginPage() {
                />
             </div>
          </div>
-         {/* Subtle background element */}
+         
          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-slate-50 rounded-full blur-3xl opacity-50" />
       </div>
 
-      {/* Right Pane — Professional Auth Card */}
+      
       <div className="w-full lg:w-7/12 flex flex-col items-center justify-center p-8 lg:p-24">
         <div className="w-full max-w-sm space-y-10 animate-in fade-in slide-in-from-bottom-5 duration-700">
           <div className="lg:hidden text-center mb-10">
@@ -131,7 +131,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Error Message Container — Fixed height to prevent layout jump */}
+            
             <div className="min-h-[60px] flex items-center">
               {error ? (
                 <div className="w-full bg-[#FFF4F2] text-[#E03131] text-[13px] font-semibold p-4 rounded-2xl border border-[#FFE3E0] animate-in slide-in-from-top-2 fade-in duration-300 flex items-start space-x-3">

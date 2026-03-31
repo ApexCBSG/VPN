@@ -25,11 +25,11 @@ export default function ProfilePage() {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
   
-  // Edit email modal
+  
   const [showEditEmail, setShowEditEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   
-  // Change password modal  
+  
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -129,13 +129,13 @@ export default function ProfilePage() {
 
   return (
     <div className="p-8 bg-[#EAEFEF] min-h-full text-[#25343F]">
-      {/* Header */}
+      
       <header className="mb-10">
         <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
         <p className="text-slate-600 mt-2">Manage your account, security, and preferences</p>
       </header>
 
-      {/* Messages */}
+      
       {message && (
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center text-emerald-800">
           <CheckCircle size={20} className="mr-3 flex-shrink-0" />
@@ -158,7 +158,7 @@ export default function ProfilePage() {
         </div>
       ) : (
         <div className="max-w-4xl space-y-6 animate-in fade-in">
-          {/* Profile Header Card */}
+          
           <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-sm overflow-hidden">
             <div className="px-8 py-8 flex flex-col sm:flex-row sm:items-center gap-6">
               <div className="h-20 w-20 rounded-full bg-gradient-to-br from-[#FF9B51] to-[#E88A42] flex items-center justify-center text-white text-2xl font-bold shadow-md">
@@ -182,9 +182,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Account Information */}
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Email Section */}
+            
             <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-sm p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600">Email Address</h3>
@@ -207,7 +207,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Account Created */}
+            
             <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-sm p-6">
               <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 mb-4">Account Information</h3>
               <div className="space-y-4">
@@ -224,7 +224,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Security Section */}
+          
           <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-sm p-6">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 mb-6 pb-4 border-b border-[#BFC9D1]">
               Security Settings
@@ -246,7 +246,7 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Additional Settings */}
+          
           <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-sm p-6">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 mb-4">
               Admin ID
@@ -263,7 +263,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Edit Email Modal */}
+      
       {showEditEmail && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-xl max-w-md w-full p-6 animate-in fade-in slide-in-from-bottom-4">
@@ -311,7 +311,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Change Password Modal */}
+      
       {showChangePassword && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg border border-[#BFC9D1] shadow-xl max-w-md w-full p-6 animate-in fade-in slide-in-from-bottom-4">
@@ -326,7 +326,7 @@ export default function ProfilePage() {
             </div>
 
             <div className="space-y-4">
-              {/* Current Password */}
+              
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                   Current Password
@@ -352,7 +352,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* New Password */}
+              
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                   New Password
@@ -378,7 +378,7 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Confirm Password */}
+              
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">
                   Confirm Password

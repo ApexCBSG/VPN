@@ -108,7 +108,7 @@ export default function SubscriptionsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setActionLoading(true);
-    // Cleanup empty features
+    
     const submissionData = {
       ...formData,
       features: formData.features.filter(f => f.trim() !== "")
@@ -251,13 +251,13 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
-      {/* Admin Modal */}
+      
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
            <div className="absolute inset-0 bg-[#25343F]/60 backdrop-blur-sm" onClick={() => setShowModal(false)} />
            <div className="relative w-full max-w-4xl bg-white rounded-[32px] shadow-2xl overflow-hidden flex flex-col md:flex-row h-full max-h-[85vh] border border-[#BFC9D1]">
               
-              {/* Modal Sidebar (Context) */}
+              
               <div className="w-full md:w-80 bg-[#1a2730] text-white p-8 hidden md:flex flex-col justify-between">
                  <div>
                     <div className="h-10 w-10 bg-[#FF9B51] rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/20 mb-6">
@@ -281,7 +281,7 @@ export default function SubscriptionsPage() {
                  </div>
               </div>
 
-              {/* Modal Content */}
+              
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 flex flex-col">
                  <div className="flex items-center justify-between mb-8">
                     <h4 className="text-lg font-bold uppercase tracking-widest text-[#25343F]">{modalMode === 'create' ? 'Enroll New Tier' : 'Modify Core Tier'}</h4>

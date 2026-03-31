@@ -42,7 +42,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileMenuOpen, s
 
   return (
     <>
-      {/* Mobile Overlay */}
+      
       {mobileMenuOpen && (
         <div 
           className="fixed inset-0 bg-[#25343F]/60 backdrop-blur-sm z-[40] lg:hidden transition-opacity duration-300" 
@@ -57,7 +57,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileMenuOpen, s
           isCollapsed ? "lg:w-20" : "lg:w-64"
         )}
       >
-        {/* Mobile Close Button */}
+        
         <button 
           onClick={() => setMobileMenuOpen(false)}
           className="absolute top-4 right-[-45px] p-2 bg-[#1a2730] text-white rounded-r-lg lg:hidden"
@@ -65,7 +65,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileMenuOpen, s
           <X size={20} />
         </button>
 
-        {/* Brand Logo */}
+        
         <div className={cn(
           "flex h-16 items-center border-b border-white/10 shrink-0 overflow-hidden",
           isCollapsed ? "lg:justify-center px-5 lg:px-0" : "px-6"
@@ -82,7 +82,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileMenuOpen, s
           </div>
         </div>
 
-        {/* Navigation Section */}
+        
         <div className={cn(
           "px-6 pt-8 pb-3 transition-opacity",
           isCollapsed ? "lg:opacity-0 lg:h-0 overflow-hidden" : "opacity-100"
@@ -130,7 +130,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileMenuOpen, s
           })}
         </nav>
 
-        {/* Sign Out Section */}
+        
         <div className="px-4 py-4 border-t border-white/5">
           <button
             onClick={handleLogout}
@@ -148,7 +148,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, mobileMenuOpen, s
           </button>
         </div>
 
-        {/* Collapse Toggle (Desktop only) */}
+        
         <div className="hidden lg:flex p-4 justify-end">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}

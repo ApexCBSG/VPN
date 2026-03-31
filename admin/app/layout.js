@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
     }
   }, [isLoginPage, router]);
 
-  // Close mobile menu on navigation
+  
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [pathname]);

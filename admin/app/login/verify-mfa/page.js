@@ -46,7 +46,7 @@ export default function VerifyMfaPage() {
 
   return (
     <div className="flex min-h-screen bg-[#EAEFEF] text-[#25343F]">
-      {/* Left Pane — Branding */}
+      
       <div className="hidden lg:flex w-1/2 bg-white flex-col items-center justify-center p-12 border-r border-[#BFC9D1]">
          <div className="max-w-md w-full text-center space-y-6">
             <div className="inline-flex p-3 rounded-2xl bg-orange-50 shadow-sm mb-4 border border-[#FF9B51]/30">
@@ -67,7 +67,7 @@ export default function VerifyMfaPage() {
          </div>
       </div>
 
-      {/* Right Pane — MFA Form */}
+      
       <div className="w-full lg:w-1/2 flex flex-col items-center justify-center p-8 lg:p-24 bg-[#EAEFEF]">
         <div className="w-full max-w-sm space-y-8 animate-in fade-in slide-in-from-right-4">
           <div className="space-y-2">

@@ -43,7 +43,7 @@ export default function TopBar({ pathname, setMobileMenuOpen }) {
   return (
     <header className="h-16 flex items-center justify-between px-4 lg:px-8 bg-white border-b border-[#BFC9D1] z-[30] shadow-sm shrink-0">
       
-      {/* Mobile Menu Toggle & Breadcrumbs */}
+      
       <div className="flex items-center space-x-3">
         <button 
           onClick={() => setMobileMenuOpen(true)}
@@ -72,7 +72,7 @@ export default function TopBar({ pathname, setMobileMenuOpen }) {
         </nav>
       </div>
 
-      {/* Profile & Notifications */}
+      
       <div className="flex items-center space-x-2 md:space-x-4">
 
         <button className="relative p-2.5 rounded-xl hover:bg-[#EAEFEF] transition-all text-slate-400 hover:text-[#25343F]">
