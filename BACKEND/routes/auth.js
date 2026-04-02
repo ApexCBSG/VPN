@@ -8,7 +8,9 @@ const {
   forgotPassword, 
   resetPassword,
   generate2FA,
-  verifyAndEnable2FA
+  verifyAndEnable2FA,
+  getMe,
+  updatePassword
 } = require('../controllers/authController');
 const { auth } = require('../middlewares/authMiddleware');
 
@@ -31,7 +33,10 @@ router.post('/2fa/setup', auth, generate2FA);
 router.post('/2fa/verify', auth, verifyAndEnable2FA);
 
 
-router.post('/forgotpassword', forgotPassword);
+router.get('/me', auth, getMe);
+
+
+router.put('/update-password', auth, updatePassword);
 
 
 router.put('/resetpassword/:resettoken', resetPassword);

@@ -1,21 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, StatusBar, Dimensions, ActivityIndicator, Alert } from 'react-native';
+import { 
+  StyleSheet, 
+  Text, 
+  View, 
+  TouchableOpacity, 
+  StatusBar, 
+  Dimensions, 
+  ActivityIndicator, 
+  Alert 
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
-import { Settings, Activity, Globe, Power } from 'lucide-react-native';
+import { Settings, Globe, Power, ShieldCheck, ShieldAlert } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-
-const { width } = Dimensions.get('window');
-
 import * as SecureStore from 'expo-secure-store';
-
 import { generateKeyPair } from '../utils/wireguard';
 import { API_URL } from '../config';
+import { getPublicIP } from '../utils/network';
+
+const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation, route }) {
   const [isConnected, setIsConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [isVerified, setIsVerified] = useState(false);
+  const [initialIP, setInitialIP] = useState(null);
+  const [publicIP, setPublicIP] = useState(null);
+
+  useEffect(() => {
+    const fetchInitial = async () => {
+        const ip = await getPublicIP();
+        setInitialIP(ip || 'VPN Gateway');
+    };
+    fetchInitial();
+  }, []);
+
   const selectedServer = route.params?.selectedServer || { 
     name: 'Auto Selection', 
     city: 'Optimal Node', 
@@ -24,8 +44,9 @@ export default function DashboardScreen({ navigation, route }) {
 
   const handleToggleConnection = async () => {
     if (isConnected) {
-      // Disconnect logic (Simplified)
       setIsConnected(false);
+      setIsVerified(false);
+      setPublicIP(null);
       return;
     }
 
@@ -45,8 +66,7 @@ export default function DashboardScreen({ navigation, route }) {
           const nodeRes = await fetch(`${API_URL}/nodes`);
           const nodes = await nodeRes.json();
           if (nodeRes.ok && nodes.length > 0) {
-            targetServer = nodes[0]; // Pick the first available node
-            // Optional: update route params or local state to show selection
+            targetServer = nodes[0];
           } else {
             Alert.alert('Network Error', 'No active VPN servers found.');
             return;
@@ -57,7 +77,7 @@ export default function DashboardScreen({ navigation, route }) {
         }
       }
 
-      // 2. Generate real WireGuard keys on device
+      // 2. Generate/Get WireGuard Keys
       let clientPubKey = await SecureStore.getItemAsync('wg_public_key');
       if (!clientPubKey) {
         const { publicKey, privateKey } = generateKeyPair();
@@ -66,7 +86,7 @@ export default function DashboardScreen({ navigation, route }) {
         clientPubKey = publicKey;
       }
 
-      // 3. Register on server
+      // 3. Handshake with Sentinel Node
       const response = await fetch(`${API_URL}/vpn/connect`, {
         method: 'POST',
         headers: {
@@ -82,13 +102,23 @@ export default function DashboardScreen({ navigation, route }) {
       const data = await response.json();
       if (response.ok) {
         setIsConnected(true);
-        console.log('Handshake Success. Internal IP:', data.config.address);
+        
+        // 4. REAL-TIME NETWORK AUDIT (Proof-of-Life)
+        const myIP = await getPublicIP();
+        setPublicIP(myIP);
+        
+        if (myIP === targetServer.ipAddress) {
+           setIsVerified(true);
+        } else {
+           console.log('[NETWORK] Handshake verified. Current IP:', myIP);
+           setIsVerified(false); 
+        }
       } else {
-        Alert.alert('Connection Failed', data.msg || 'Server is busy.');
+        Alert.alert('Handshake Error', data.msg || 'Server busy.');
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Network Error', 'Could not establish tunnel handshake.');
+      Alert.alert('Network Error', 'Handshake failed.');
     } finally {
       setConnecting(false);
     }
@@ -104,32 +134,60 @@ export default function DashboardScreen({ navigation, route }) {
             style={styles.iconButton}
             onPress={() => navigation.navigate('Servers')}
           >
-             <Globe size={24} color={theme.colors.onSurface} strokeWidth={1.5} />
+             <Globe size={20} color={theme.colors.onSurface} strokeWidth={2.5} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
-             <Settings size={24} color={theme.colors.onSurface} strokeWidth={1.5} />
+
+          <View style={styles.headerInfo}>
+             <Text style={styles.headerTitle}>SENTINEL NODE</Text>
+             <Text style={[styles.headerStatus, isConnected && { color: isVerified ? theme.colors.primary : '#ffb300' }]}>
+                {isConnected ? (isVerified ? 'VERIFIED TUNNEL' : 'HANDSHAKE OK') : 'PROTECTION OFF'}
+             </Text>
+          </View>
+
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('Account')}
+          >
+             <Settings size={20} color={theme.colors.onSurface} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.statusContainer}>
-          <View style={[styles.statusChip, { backgroundColor: isConnected ? theme.colors.tertiary : theme.colors.error }]}>
-            <Text style={styles.statusChipText}>{isConnected ? 'SECURED' : 'UNSECURED'}</Text>
+          <View style={[
+            styles.statusChip, 
+            { backgroundColor: isConnected ? (isVerified ? theme.colors.primary : 'rgba(255, 179, 0, 0.15)') : 'rgba(255, 113, 108, 0.1)' }
+          ]}>
+             {isConnected ? (
+                isVerified ? <ShieldCheck size={12} color={theme.colors.background} /> : <ShieldAlert size={12} color="#ffb300" />
+             ) : <ShieldAlert size={12} color={theme.colors.error} />}
+            <Text style={[
+                styles.statusChipText, 
+                isConnected ? (isVerified ? {color: theme.colors.background} : {color: '#ffb300'}) : {color: theme.colors.error}
+            ]}>
+                {isConnected ? (isVerified ? 'ENCRYPTED' : 'OS BRIDGE REQUIRED') : 'UNSECURED'}
+            </Text>
           </View>
           <Text style={styles.displayStatus}>
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected ? 'Active' : 'Standby'}
           </Text>
+          {isConnected && !isVerified && (
+             <Text style={styles.bridgeInfo}>Protocol handshake successful. Local tunnel pending.</Text>
+          )}
         </View>
       </View>
 
       <View style={styles.main}>
         <TouchableOpacity 
           activeOpacity={0.8} 
-          style={[styles.connectOuter, isConnected && { shadowColor: theme.colors.tertiary, shadowOpacity: 0.6 }]}
+          style={[
+            styles.connectOuter, 
+            isConnected && { shadowColor: isVerified ? theme.colors.primary : '#ffb300', shadowOpacity: 0.3 }
+          ]}
           onPress={handleToggleConnection}
           disabled={connecting}
         >
           <LinearGradient
-            colors={isConnected ? ['#00e3fd', '#002b3d'] : theme.colors.linearGradient}
+            colors={isConnected ? (isVerified ? ['#81ecff', '#004c5a'] : ['#ffb300', '#4a3a00']) : theme.colors.linearGradient}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.pulseContainer}
@@ -138,37 +196,52 @@ export default function DashboardScreen({ navigation, route }) {
                {connecting ? (
                  <ActivityIndicator size="large" color={theme.colors.background} />
                ) : (
-                 <Power size={50} color={theme.colors.background} strokeWidth={2} />
+                 <Power size={50} color={theme.colors.background} strokeWidth={2.5} />
                )}
-               <Text style={styles.buttonLabel}>{isConnected ? 'DISCONNECT' : 'CONNECT'}</Text>
+               <Text style={styles.buttonLabel}>{isConnected ? 'DISCONNECT' : 'INITIALIZE'}</Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
-        <BlurView intensity={20} tint="dark" style={styles.glassPanel}>
+        <BlurView intensity={30} tint="dark" style={styles.glassPanel}>
           <TouchableOpacity 
             style={styles.statItem}
             onPress={() => navigation.navigate('Servers')}
           >
-            <Text style={styles.statLabel}>LOCATION</Text>
+            <Text style={styles.statLabel}>NODE ARCHITECTURE</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{selectedServer.name}</Text>
-              <Text style={styles.statSubValue}>{selectedServer.city}, {selectedServer.countryCode}</Text>
+              <Text style={styles.statValue}>{selectedServer.name || 'Optimal Route'}</Text>
+              <Text style={styles.statSubValue}>{selectedServer.city || 'Searching...'}, {selectedServer.countryCode || 'Global'}</Text>
             </View>
           </TouchableOpacity>
           
           <View style={styles.divider} />
 
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>PROTOCOL</Text>
+            <Text style={styles.statLabel}>CORE PROTOCOL</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>WireGuard</Text>
-              <Text style={styles.statSubValue}>{isConnected ? 'v4.2.0-STABLE' : 'Standby'}</Text>
+              <Text style={styles.statValue}>WireGuard®</Text>
+              <Text style={styles.statSubValue}>{isConnected ? 'UDP Encrypted' : 'Standby Mode'}</Text>
             </View>
           </View>
         </BlurView>
+        
+        <View style={styles.ipContainer}>
+           <View style={styles.ipSection}>
+              <Text style={styles.ipLabel}>ORIGINAL IP</Text>
+              <Text style={styles.ipValue}>{initialIP || 'Checking...'}</Text>
+           </View>
+           <View style={styles.ipDivider} />
+           <View style={styles.ipSection}>
+              <Text style={styles.ipLabel}>SENTINEL IP</Text>
+              <Text style={[styles.ipValue, isVerified && { color: theme.colors.primary }]}>
+                {isConnected ? (publicIP || 'Handshaking...') : '---.---.---.---'}
+              </Text>
+           </View>
+        </View>
+        <Text style={styles.footerBranding}>TUNNEL ARCHITECTURE v4.2.0-STABLE</Text>
       </View>
     </SafeAreaView>
   );
@@ -187,38 +260,69 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.huge,
+    marginBottom: 40,
+  },
+  headerInfo: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 10,
+    fontFamily: theme.fonts.label,
+    color: theme.colors.onSurfaceVariant,
+    fontWeight: '900',
+    letterSpacing: 2,
+  },
+  headerStatus: {
+    fontSize: 10,
+    fontFamily: theme.fonts.label,
+    color: theme.colors.outline,
+    fontWeight: '900',
+    marginTop: 2,
+    letterSpacing: 1,
   },
   iconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: theme.colors.surfaceContainerHigh,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.outlineVariant,
   },
   statusContainer: {
     alignItems: 'center',
   },
   statusChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: theme.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 12,
+    gap: 6,
   },
   statusChipText: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: theme.fonts.label,
-    fontWeight: '800',
-    color: theme.colors.surface,
+    fontWeight: '900',
     letterSpacing: 1,
   },
   displayStatus: {
-    fontSize: 56, 
+    fontSize: 52, 
     fontFamily: theme.fonts.display,
     color: theme.colors.onBackground,
-    fontWeight: '700',
+    fontWeight: '900',
     textAlign: 'center',
+    letterSpacing: -1,
+  },
+  bridgeInfo: {
+    fontSize: 11,
+    color: '#ffb300',
+    fontFamily: theme.fonts.body,
+    marginTop: 8,
+    textAlign: 'center',
+    opacity: 0.8,
   },
   main: {
     flex: 1,
@@ -226,20 +330,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   connectOuter: {
-    width: width * 0.6,
-    height: width * 0.6,
-    borderRadius: width * 0.3,
+    width: width * 0.65,
+    height: width * 0.65,
+    borderRadius: width * 0.325,
     padding: 12,
     backgroundColor: theme.colors.surfaceContainerHigh,
-    shadowColor: theme.colors.primary,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 30,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 10 },
+    shadowRadius: 40,
+    elevation: 25,
   },
   pulseContainer: {
     flex: 1,
-    borderRadius: width * 0.3,
+    borderRadius: width * 0.325,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -248,51 +350,94 @@ const styles = StyleSheet.create({
   },
   buttonLabel: {
     color: theme.colors.background,
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: theme.fonts.label,
     fontWeight: '900',
     letterSpacing: 3,
-    marginTop: 12,
+    marginTop: 15,
   },
   footer: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: 40,
   },
   glassPanel: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: theme.roundness.lg,
-    padding: theme.spacing.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: 24,
+    padding: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: theme.colors.outlineVariant,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: 20,
   },
   statItem: {
     flex: 1,
   },
   statLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: theme.fonts.label,
     color: theme.colors.onSurfaceVariant,
-    fontWeight: '800',
+    fontWeight: '900',
     letterSpacing: 1,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: 15,
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurface,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   statSubValue: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurfaceVariant,
-    marginTop: 2,
+    marginTop: 3,
   },
   divider: {
     width: 1,
-    backgroundColor: theme.colors.outlineVariant,
-    marginHorizontal: theme.spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginHorizontal: 20,
   },
+  ipContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+    borderRadius: 16,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  ipSection: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  ipLabel: {
+    fontSize: 8,
+    fontFamily: theme.fonts.label,
+    color: theme.colors.onSurfaceVariant,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  ipValue: {
+    fontSize: 11,
+    fontFamily: theme.fonts.body,
+    color: theme.colors.outline,
+    fontWeight: '700',
+  },
+  ipDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginHorizontal: 10,
+  },
+  footerBranding: {
+    textAlign: 'center',
+    marginTop: 15,
+    fontSize: 8,
+    fontFamily: theme.fonts.label,
+    color: theme.colors.onSurfaceVariant,
+    letterSpacing: 2,
+    opacity: 0.5,
+  }
 });
