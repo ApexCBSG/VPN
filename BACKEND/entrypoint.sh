@@ -12,4 +12,4 @@ sysctl -w net.ipv4.ip_forward=1 || echo "⚠️ Warning: Could not set sysctl. E
 
 # 2. Start the Backend Application
 echo "[BOOT] Starting Sentinel Backend..."
-npm start
+node index.js
