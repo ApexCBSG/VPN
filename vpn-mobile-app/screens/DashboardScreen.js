@@ -19,6 +19,8 @@ import { generateKeyPair } from '../utils/wireguard';
 import { API_URL } from '../config';
 import { getPublicIP } from '../utils/network';
 
+import { connectVPN, disconnectVPN } from '../utils/vpnBridge';
+
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation, route }) {
@@ -44,6 +46,7 @@ export default function DashboardScreen({ navigation, route }) {
 
   const handleToggleConnection = async () => {
     if (isConnected) {
+      await disconnectVPN().catch(() => {});
       setIsConnected(false);
       setIsVerified(false);
       setPublicIP(null);
@@ -62,18 +65,12 @@ export default function DashboardScreen({ navigation, route }) {
       // 1. Auto-select server if none is selected
       let targetServer = selectedServer;
       if (!targetServer._id) {
-        try {
-          const nodeRes = await fetch(`${API_URL}/nodes`);
-          const nodes = await nodeRes.json();
-          if (nodeRes.ok && nodes.length > 0) {
-            targetServer = nodes[0];
-          } else {
-            Alert.alert('Network Error', 'No active VPN servers found.');
-            return;
-          }
-        } catch (nodeErr) {
-          Alert.alert('Network Error', 'Could not reach server registry.');
-          return;
+        const nodeRes = await fetch(`${API_URL}/nodes`);
+        const nodes = await nodeRes.json();
+        if (nodeRes.ok && nodes.length > 0) {
+          targetServer = nodes[0];
+        } else {
+          throw new Error('No active VPN nodes available.');
         }
       }
 
@@ -89,36 +86,36 @@ export default function DashboardScreen({ navigation, route }) {
       // 3. Handshake with Sentinel Node
       const response = await fetch(`${API_URL}/vpn/connect`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': token
-        },
-        body: JSON.stringify({
-          nodeId: targetServer._id,
-          publicKey: clientPubKey
-        })
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ nodeId: targetServer._id, publicKey: clientPubKey })
       });
 
       const data = await response.json();
-      if (response.ok) {
-        setIsConnected(true);
-        
-        // 4. REAL-TIME NETWORK AUDIT (Proof-of-Life)
-        const myIP = await getPublicIP();
-        setPublicIP(myIP);
-        
-        if (myIP === targetServer.ipAddress) {
-           setIsVerified(true);
-        } else {
-           console.log('[NETWORK] Handshake verified. Current IP:', myIP);
-           setIsVerified(false); 
-        }
+      if (!response.ok) throw new Error(data.msg || 'Handshake failed.');
+
+      setIsConnected(true);
+
+      // 4. ACTIVATE NATIVE TUNNEL (The "Real" VPN Step)
+      try {
+        await connectVPN(data.config);
+      } catch (nativeErr) {
+        // Fallback for development environments without native modules
+        console.log('[Native] Bridge unavailable. Standard behavior for Expo Go.');
+      }
+      
+      // 5. REAL-TIME NETWORK AUDIT (Proof-of-Life)
+      const myIP = await getPublicIP();
+      setPublicIP(myIP);
+      
+      if (myIP === targetServer.ipAddress) {
+         setIsVerified(true);
       } else {
-        Alert.alert('Handshake Error', data.msg || 'Server busy.');
+         console.log('[NETWORK] Handshake verified. Current IP:', myIP);
+         setIsVerified(false); 
       }
     } catch (error) {
       console.error(error);
-      Alert.alert('Network Error', 'Handshake failed.');
+      Alert.alert('Protocol Error', error.message || 'Connection failed.');
     } finally {
       setConnecting(false);
     }
