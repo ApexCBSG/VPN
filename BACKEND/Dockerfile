@@ -16,8 +16,12 @@ RUN npm install --omit=dev
 # Copy the rest of the application code
 COPY . .
 
+# Add the entrypoint script for automated networking
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+
 # Expose the API port
 EXPOSE 5000
 
-# Start the application
-CMD ["node", "index.js"]
+# Start via our automated entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
