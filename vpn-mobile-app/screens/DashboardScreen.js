@@ -99,8 +99,12 @@ export default function DashboardScreen({ navigation, route }) {
       try {
         await connectVPN(data.config);
       } catch (nativeErr) {
-        // Fallback for development environments without native modules
-        console.log('[Native] Bridge unavailable. Standard behavior for Expo Go.');
+        console.error('[Native] VPN Activation Error:', nativeErr);
+        Alert.alert(
+          'OS Bridge Required', 
+          'The protocol handshake succeeded, but the local OS tunnel could not start. ' + 
+          'Reason: ' + (nativeErr.message || 'Environment mismatch (Expo Go?).')
+        );
       }
       
       // 5. REAL-TIME NETWORK AUDIT (Proof-of-Life)

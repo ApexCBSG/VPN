@@ -10,22 +10,28 @@ export const connectVPN = async (config) => {
     const privateKey = await SecureStore.getItemAsync('wg_private_key');
     if (!privateKey) throw new Error('Private key not found on device.');
 
-    // 1. Prepare standard WireGuard configuration
+    // 1. Initialize the native WireGuard runtime
+    // This library requires initialization before connection
+    await WireGuard.initialize();
+
+    // 2. Prepare standard WireGuard configuration with Peer Array
     const wgConfig = {
       address: config.address,
       dns: config.dns || '1.1.1.1',
       privateKey: privateKey,
-      publicKey: config.serverPublicKey,
-      endpoint: config.endpoint,
-      allowedIps: '0.0.0.0/0', // Full Tunnel (Industry Standard)
+      peers: [{
+        publicKey: config.serverPublicKey,
+        endpoint: config.endpoint,
+        allowedIps: '0.0.0.0/0', // Full Tunnel (Industry Standard)
+      }],
       mtu: config.mtu || 1420,
     };
 
-    // 2. Invoke Native OS Tunnel Service
-    // This will trigger the system-level VPN permission dialog
-    const status = await WireGuard.activate(wgConfig);
-    console.log('[VPN_BRIDGE] Activation Status:', status);
-    return status;
+    // 3. Invoke Native OS Tunnel Service (Triggers VPN Permission Dialog)
+    await WireGuard.connect(wgConfig);
+    
+    console.log('[VPN_BRIDGE] Connection Successful.');
+    return 'CONNECTED';
   } catch (error) {
     console.error('[VPN_BRIDGE] Connection Error:', error);
     throw error;
@@ -34,16 +40,17 @@ export const connectVPN = async (config) => {
 
 export const disconnectVPN = async () => {
   try {
-    await WireGuard.deactivate();
-    console.log('[VPN_BRIDGE] Deactivated.');
+    await WireGuard.disconnect();
+    console.log('[VPN_BRIDGE] Disconnected.');
   } catch (error) {
-    console.error('[VPN_BRIDGE] Deactivation Error:', error);
+    console.error('[VPN_BRIDGE] Disconnect Error:', error);
   }
 };
 
 export const getVPNStatus = async () => {
   try {
-    return await WireGuard.getStatus();
+    const status = await WireGuard.getStatus();
+    return status; // Returns CONNECTED, DISCONNECTED, etc.
   } catch (error) {
     return 'DISCONNECTED';
   }

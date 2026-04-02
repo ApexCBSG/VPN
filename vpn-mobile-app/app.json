@@ -17,6 +17,11 @@
     },
     "android": {
       "package": "com.sentinel.tunnel",
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.BIND_VPN_SERVICE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -29,6 +34,11 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d218ecc4-1bef-4a9f-ac9f-0c8d7f54618f"
+      }
+    }
   }
 }
