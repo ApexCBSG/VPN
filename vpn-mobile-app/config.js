@@ -8,12 +8,11 @@ import { Platform } from 'react-native';
  * - 192.168.x.x: Your machine's local IP (for physical devices)
  */
 
-const LOCAL_IP = '10.0.2.2'; // Change this to your computer's local IP if using a real phone
+/**
+ * Sentinel Production API Configuration
+ * Switching from local '10.0.2.2' to live Sentinel Cloud Endpoint.
+ */
 
-export const BASE_URL = Platform.select({
-  android: `http://${LOCAL_IP}:5000`,
-  ios: 'http://localhost:5000',
-  default: 'http://localhost:5000',
-});
+export const BASE_URL = 'http://eer9s13ro0qqw7yf5l7ncohi.187.77.147.155.sslip.io';
 
 export const API_URL = `${BASE_URL}/api`;
