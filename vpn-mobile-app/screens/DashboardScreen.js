@@ -7,7 +7,8 @@ import {
   StatusBar, 
   Dimensions, 
   ActivityIndicator, 
-  Alert 
+  Alert,
+  AppState
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
@@ -18,6 +19,7 @@ import * as SecureStore from 'expo-secure-store';
 import { generateKeyPair } from '../utils/wireguard';
 import { API_URL } from '../config';
 import { getPublicIP } from '../utils/network';
+import { runVPNDiagnostics } from '../utils/vpnDiagnostics';
 
 import { connectVPN, disconnectVPN } from '../utils/vpnBridge';
 
@@ -29,6 +31,8 @@ export default function DashboardScreen({ navigation, route }) {
   const [isVerified, setIsVerified] = useState(false);
   const [initialIP, setInitialIP] = useState(null);
   const [publicIP, setPublicIP] = useState(null);
+  const [pendingConnection, setPendingConnection] = useState(null);
+  const [debugInfo, setDebugInfo] = useState('');
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -38,7 +42,21 @@ export default function DashboardScreen({ navigation, route }) {
     fetchInitial();
   }, []);
 
-  // SENTINEL HEARTBEAT: Resolves "Local Tunnel Pending" drift
+  // Handle app returning from foreground (after user grants VPN permission)
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [pendingConnection]);
+
+  const handleAppStateChange = async (state) => {
+    if (state === 'active' && pendingConnection) {
+      console.log('[AppState] App returned to foreground with pending VPN connection');
+      setPendingConnection(null);
+      // Auto-retry connection
+      await new Promise(r => setTimeout(r, 500)); // Small delay
+      await handleToggleConnection();
+    }
+  };
   useEffect(() => {
     let interval;
     if (isConnected && !isVerified) {
@@ -90,9 +108,17 @@ export default function DashboardScreen({ navigation, route }) {
         }
       }
 
-      // 2. Generate/Get WireGuard Keys
+      // 2. Generate/Get WireGuard Keys (Sentinel Auto-Rotation Fix)
       let clientPubKey = await SecureStore.getItemAsync('wg_public_key');
-      if (!clientPubKey) {
+      let clientPrivKey = await SecureStore.getItemAsync('wg_private_key');
+      
+      // If we were previously stuck or keys are missing, force a fresh rotation
+      if (!isVerified && isConnected) {
+        console.log('[SECURITY] Stale connection detected. Rotating keys...');
+        clientPubKey = null; 
+      }
+
+      if (!clientPubKey || !clientPrivKey) {
         const { publicKey, privateKey } = generateKeyPair();
         await SecureStore.setItemAsync('wg_public_key', publicKey);
         await SecureStore.setItemAsync('wg_private_key', privateKey);
@@ -109,29 +135,60 @@ export default function DashboardScreen({ navigation, route }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.msg || 'Handshake failed.');
 
-      setIsConnected(true);
-
-      // 4. ACTIVATE NATIVE TUNNEL (The "Real" VPN Step)
+      // 4. ACTIVATE NATIVE TUNNEL (The "Real" VPN Step) - BEFORE marking as connected
+      let vpnResult;
       try {
-        await connectVPN(data.config);
+        vpnResult = await connectVPN(data.config);
+        if (vpnResult === 'PERMISSION_PENDING') {
+          console.log('[VPN] Waiting for Android VPN permission dialog...');
+          setPendingConnection(data.config); // Store for retry after permission
+          Alert.alert(
+            'VPN Permission',
+            'Android is requesting permission to create a local VPN tunnel.\n\nTap "Accept" on the system dialog that appears next.',
+            [{ text: 'OK' }]
+          );
+          setConnecting(false);
+          return;
+        }
       } catch (nativeErr) {
         console.error('[Native] VPN Activation Error:', nativeErr);
+        setDebugInfo(`Error: ${nativeErr.message || nativeErr.toString()}`);
         Alert.alert(
-          'OS Bridge Required', 
-          'The protocol handshake succeeded, but the local OS tunnel could not start. ' + 
-          'Reason: ' + (nativeErr.message || 'Environment mismatch (Expo Go?).')
+          'Connection Failed', 
+          'Failed to activate VPN tunnel:\n\n' + (nativeErr.message || 'Unknown error') +
+          '\n\nMake sure you have Android 5.0+ and try again.',
+          [{ text: 'OK' }]
         );
+        setConnecting(false);
+        return;
       }
+
+      // ✅ ONLY mark as connected AFTER successful tunnel activation
+      setIsConnected(true);
       
       // 5. REAL-TIME NETWORK AUDIT (Proof-of-Life)
+      // Wait 3 seconds for tunnel to stabilize
+      await new Promise(r => setTimeout(r, 3000));
+      
       const myIP = await getPublicIP();
       setPublicIP(myIP);
       
-      if (myIP === targetServer.ipAddress) {
+      console.log('[DASHBOARD] IP Verification:', {
+        targetServer: targetServer.ipAddress,
+        myIP: myIP,
+        match: myIP === targetServer.ipAddress
+      });
+      
+      if (myIP && myIP !== targetServer.ipAddress) {
+         // IP changed! Tunnel is working
+         console.log('[NETWORK] ✅ Tunnel verified via IP change');
          setIsVerified(true);
       } else {
-         console.log('[NETWORK] Handshake verified. Current IP:', myIP);
-         setIsVerified(false); 
+         // IP didn't change - might be due to IP leaking or VPN issue
+         console.warn('[NETWORK] IP verification inconclusive. Running diagnostics...');
+         const diag = await runVPNDiagnostics(initialIP);
+         console.log('[DIAGNOSTICS]', JSON.stringify(diag, null, 2));
+         setDebugInfo(`IP unchanged. Check server connectivity.`);
       }
     } catch (error) {
       console.error(error);
@@ -189,6 +246,9 @@ export default function DashboardScreen({ navigation, route }) {
           </Text>
           {isConnected && !isVerified && (
              <Text style={styles.bridgeInfo}>Negotiating connection with secure gateway...</Text>
+          )}
+          {debugInfo && (
+             <Text style={[styles.bridgeInfo, { color: '#ff6b6b', marginTop: 12 }]}>DEBUG: {debugInfo}</Text>
           )}
         </View>
       </View>

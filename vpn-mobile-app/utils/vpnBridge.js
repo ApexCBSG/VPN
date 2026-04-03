@@ -13,6 +13,14 @@ export const connectVPN = async (handshakeData) => {
   try {
     console.log('[VPN_BRIDGE] INITIATING PATCHED HANDSHAKE:', JSON.stringify(handshakeData, null, 2));
 
+    // Validate handshake data
+    if (!handshakeData || !handshakeData.endpoint) {
+      throw new Error('Invalid handshake data: missing endpoint. Server returned: ' + JSON.stringify(handshakeData));
+    }
+    if (!handshakeData.serverPublicKey) {
+      throw new Error('Invalid handshake data: missing serverPublicKey');
+    }
+
     const privateKey = await SecureStore.getItemAsync('wg_private_key');
     if (!privateKey) throw new Error('Private key missing. Please log out and back in.');
 
@@ -27,6 +35,10 @@ export const connectVPN = async (handshakeData) => {
     // 2. Parse Endpoint
     const [serverAddress, portStr] = (handshakeData.endpoint || '').split(':');
     const serverPort = parseInt(portStr, 10) || 51820;
+    
+    if (!serverAddress) {
+      throw new Error('Invalid endpoint format: ' + handshakeData.endpoint);
+    }
 
     // 3. Interface IP Sanitization (CIDR Enforcement)
     let interfaceAddress = handshakeData.address || '10.64.0.2/32';
@@ -45,7 +57,7 @@ export const connectVPN = async (handshakeData) => {
       address: interfaceAddress, 
       
       // Native Property: 'allowedIPs' (Plural, Array)
-      allowedIPs: ['0.0.0.0/0'], 
+      allowedIPs: ['0.0.0.0/0', '::/0'], // IPv4 and IPv6 traffic
       
       // Native Properties: Explicit Split
       serverAddress: serverAddress,
@@ -62,17 +74,15 @@ export const connectVPN = async (handshakeData) => {
       await WireGuard.connect(config);
     } catch (nativeErr) {
       // HANDLE THE INJECTED PERMISSION ERROR
-      if (nativeErr.code === 'VPN_PERMISSION_REQUIRED' || nativeErr.message?.includes('permission')) {
-        Alert.alert(
-          'Sentinel Authorization',
-          'Standard Android VPN setup is required. Please tap "OK" on the next system dialog to authorize the secure tunnel.',
-          [{ text: 'OK' }]
-        );
+      if (nativeErr.code === 'VPN_PERMISSION_REQUIRED' || nativeErr.message?.includes('VPN_PERMISSION_REQUIRED') || nativeErr.message?.includes('permission')) {
+        console.log('[VPN_BRIDGE] Permission required. User must accept Android dialog.');
         return 'PERMISSION_PENDING';
       }
+      console.error('[VPN_BRIDGE] Connection failed:', nativeErr.message, nativeErr.code);
       throw nativeErr;
     }
     
+    console.log('[VPN_BRIDGE] ✅ Tunnel established successfully');
     return 'CONNECTED';
   } catch (error) {
     console.error('[VPN_BRIDGE] Handshake Failure:', error);
