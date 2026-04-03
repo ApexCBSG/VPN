@@ -20,10 +20,10 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const PHASES = {
   IDLE: 'READY',
-  PINGING: 'Checking Ping',
-  DOWNLOAD: 'Downloading',
-  UPLOAD: 'Uploading',
-  COMPLETE: 'Finished'
+  PINGING: 'LATENCY CHECK',
+  DOWNLOAD: 'THROUGHPUT TEST (DL)',
+  UPLOAD: 'THROUGHPUT TEST (UL)',
+  COMPLETE: 'ANALYSIS COMPLETE'
 };
 
 export default function SpeedTestScreen({ route }) {
@@ -161,8 +161,8 @@ export default function SpeedTestScreen({ route }) {
       {/* Header - Brand Synced */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>Speed Test</Text>
-          <Text style={styles.subtitle}>Network performance audit</Text>
+          <Text style={styles.title}>Performance Test</Text>
+          <Text style={styles.subtitle}>Network diagnostics audit</Text>
         </View>
         <LinearGradient colors={theme.colors.linearGradient} style={styles.iconCircle}>
           <Wifi size={20} color={theme.colors.background} />
@@ -261,7 +261,7 @@ export default function SpeedTestScreen({ route }) {
             <BlurView intensity={theme.colors.glassBlur} tint="dark" style={styles.glassCard}>
                <View style={styles.cardHeader}>
                   <Server size={10} color={theme.colors.error} />
-                  <Text style={styles.cardTitle}>SCORE</Text>
+                  <Text style={styles.cardTitle}>DIAGNOSIS</Text>
                </View>
                <Text style={[styles.cardValue, { fontSize: 13, color: theme.colors.primary }]}>{score}</Text>
                <Text style={styles.cardUnit}>RATING</Text>

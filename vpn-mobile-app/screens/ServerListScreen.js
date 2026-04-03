@@ -92,8 +92,8 @@ export default function ServerListScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Network Locations</Text>
-        <Text style={styles.subtitle}>Select a high-performance server</Text>
+        <Text style={styles.title}>Global Connection Network</Text>
+        <Text style={styles.subtitle}>Select an optimized enterprise node for your session</Text>
         
         <View style={styles.searchContainer}>
           <Search size={20} color={theme.colors.onSurfaceVariant} style={styles.searchIcon} />
@@ -118,7 +118,7 @@ export default function ServerListScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <Text style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center', marginTop: 50 }}>
-              No active servers found in this region.
+              No available nodes detected in this region.
             </Text>
           }
         />

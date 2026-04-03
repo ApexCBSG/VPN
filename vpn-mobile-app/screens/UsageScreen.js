@@ -24,13 +24,13 @@ export default function UsageScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
-          <Text style={styles.title}>Data Usage</Text>
-          <Text style={styles.subtitle}>Traffic analytics and connection history</Text>
+          <Text style={styles.title}>Connection Analytics</Text>
+          <Text style={styles.subtitle}>Real-time monitoring and throughput analysis</Text>
         </View>
 
         
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>DATA TRANSFERRED (GB)</Text>
+          <Text style={styles.chartTitle}>NETWORK THROUGHPUT (GB)</Text>
           <LineChart
             data={chartData}
             width={width - theme.spacing.lg * 2}
@@ -66,7 +66,7 @@ export default function UsageScreen() {
 
         
         <View style={styles.historyContainer}>
-          <Text style={styles.sectionLabel}>SESSION HISTORY</Text>
+          <Text style={styles.sectionLabel}>SESSION LOGS</Text>
           {[1, 2, 3].map((_, i) => (
             <View key={i} style={styles.historyItem}>
               <View style={styles.historyIcon}>
