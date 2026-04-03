@@ -1,0 +1,32 @@
+diff --git a/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt b/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt
+index 0379b7c..d0c8461 100644
+--- a/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt
++++ b/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt
+@@ -1,5 +1,7 @@
+ package com.wireguardvpn
+ 
++import android.net.VpnService
++import android.app.Activity
+ import com.facebook.react.bridge.*
+ import com.facebook.react.modules.core.DeviceEventManagerModule
+ import com.wireguard.android.backend.GoBackend
+@@ -66,6 +68,19 @@ class WireGuardVpnModule(reactContext: ReactApplicationContext) : ReactContextBa
+     fun connect(config: ReadableMap, promise: Promise) {
+         try {
+             println("Starting VPN connection process...")
++            
++            // --- SURGICAL PERMISSION CHECK ---
++            val intent = VpnService.prepare(reactApplicationContext)
++            if (intent != null) {
++                val activity = getCurrentActivity()
++                if (activity != null) {
++                    activity.startActivityForResult(intent, 1000)
++                    promise.reject("VPN_PERMISSION_REQUIRED", "Please accept the Android VPN permission dialog.")
++                    return
++                }
++            }
++            // ---------------------------------
++
+             println("Received config: $config")
+             
+             if (backend == null) {
