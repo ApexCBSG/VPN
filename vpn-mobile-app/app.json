@@ -20,6 +20,9 @@
       "permissions": [
         "android.permission.INTERNET",
         "android.permission.FOREGROUND_SERVICE",
+        "android.permission.BIND_VPN_SERVICE",
+        "android.permission.INTERNET",
+        "android.permission.FOREGROUND_SERVICE",
         "android.permission.BIND_VPN_SERVICE"
       ],
       "adaptiveIcon": {
@@ -39,6 +42,12 @@
       "eas": {
         "projectId": "d218ecc4-1bef-4a9f-ac9f-0c8d7f54618f"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d218ecc4-1bef-4a9f-ac9f-0c8d7f54618f"
     }
   }
 }

@@ -52,7 +52,7 @@ export const connectVPN = async (handshakeData) => {
       serverPort: serverPort,
 
       dns: ['1.1.1.1', '8.8.8.8'],
-      mtu: 1200 // Industry "Safe Mode" for mobile (Fixes LTE/5G packet drop)
+      mtu: 1420 // Standard WireGuard MTU (Min allowed by OS is 1280)
     };
 
     console.log('[VPN_BRIDGE] Executing Native Sync (PRO):', JSON.stringify(config, null, 2));
