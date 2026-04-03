@@ -16,7 +16,12 @@ export const connectVPN = async (handshakeData) => {
     const privateKey = await SecureStore.getItemAsync('wg_private_key');
     if (!privateKey) throw new Error('Private key missing. Please log out and back in.');
 
-    // 1. Initialize
+    // 1. Initial State Cleanup (Prevents "Ghost Session" hang)
+    try {
+      await WireGuard.disconnect();
+    } catch (e) {
+      // Ignore if not connected
+    }
     await WireGuard.initialize();
 
     // 2. Parse Endpoint
@@ -45,7 +50,7 @@ export const connectVPN = async (handshakeData) => {
       serverPort: serverPort,
 
       dns: ['1.1.1.1', '8.8.8.8'],
-      mtu: 1420
+      mtu: 1280
     };
 
     console.log('[VPN_BRIDGE] Executing Native Sync (PRO):', JSON.stringify(config, null, 2));

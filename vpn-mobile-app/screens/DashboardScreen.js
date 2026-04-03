@@ -38,6 +38,22 @@ export default function DashboardScreen({ navigation, route }) {
     fetchInitial();
   }, []);
 
+  // SENTINEL HEARTBEAT: Resolves "Local Tunnel Pending" drift
+  useEffect(() => {
+    let interval;
+    if (isConnected && !isVerified) {
+      interval = setInterval(async () => {
+        const currentIP = await getPublicIP();
+        if (currentIP && currentIP !== initialIP) {
+          console.log('[HEARTBEAT] Tunnel Verified via IP Shift:', currentIP);
+          setPublicIP(currentIP);
+          setIsVerified(true);
+        }
+      }, 2500);
+    }
+    return () => clearInterval(interval);
+  }, [isConnected, isVerified, initialIP]);
+
   const selectedServer = route.params?.selectedServer || { 
     name: 'Auto Selection', 
     city: 'Optimal Node', 
