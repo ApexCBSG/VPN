@@ -12,7 +12,7 @@ const generateToken = (id) => {
 
 
 exports.register = async (req, res) => {
-  const { email, password } = req.body;
+  const { name, email, password } = req.body;
 
   try {
     let user = await User.findOne({ email });
@@ -25,6 +25,7 @@ exports.register = async (req, res) => {
     const verificationTokenExpire = Date.now() + 10 * 60 * 1000; 
 
     user = new User({ 
+      name,
       email, 
       password,
       verificationToken: verificationCode,
@@ -122,6 +123,7 @@ exports.login = async (req, res) => {
       token,
       user: {
         _id: user._id,
+        name: user.name,
         email: user.email,
         tier: user.tier
       }

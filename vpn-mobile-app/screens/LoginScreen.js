@@ -67,11 +67,11 @@ export default function LoginScreen({ navigation }) {
               <ShieldCheck size={40} color={theme.colors.primary} strokeWidth={1.5} />
             </View>
             <Text style={styles.brandName}>SENTINEL</Text>
-            <Text style={styles.brandTagline}>ENTERPRISE-GRADE PRIVACY SOLUTIONS</Text>
+            <Text style={styles.brandTagline}>SECURE CORPORATE VPN ACCESS</Text>
           </View>
 
           <View style={styles.form}>
-            <Text style={styles.label}>SIGN IN</Text>
+            <Text style={styles.label}>ACCOUNT SIGN IN</Text>
             <View style={styles.inputWrapper}>
               <Mail size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
               <TextInput 
@@ -113,7 +113,7 @@ export default function LoginScreen({ navigation }) {
               {loading ? (
                 <ActivityIndicator color={theme.colors.background} />
               ) : (
-                <Text style={styles.loginButtonText}>LOGIN TO ACCOUNT</Text>
+                <Text style={styles.loginButtonText}>SIGN IN</Text>
               )}
             </TouchableOpacity>
 

@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Manrope_400Regular, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SecureStore from 'expo-secure-store';
 import { Shield, Map, Activity, Zap, User } from 'lucide-react-native';
 
 import LoginScreen from './screens/LoginScreen';
@@ -70,13 +71,32 @@ export default function App() {
     Inter_600SemiBold,
   });
 
+  const [initialRoute, setInitialRoute] = React.useState('Login');
+  const [isReady, setIsReady] = React.useState(false);
+
+  React.useEffect(() => {
+    async function checkAuth() {
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (token) {
+          setInitialRoute('Main');
+        }
+      } catch (e) {
+        // Fallback to login
+      } finally {
+        setIsReady(true);
+      }
+    }
+    checkAuth();
+  }, []);
+
   const onLayoutRootView = React.useCallback(async () => {
-    if (fontsLoaded || fontError) {
+    if ((fontsLoaded || fontError) && isReady) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsLoaded, fontError, isReady]);
 
-  if (!fontsLoaded && !fontError) {
+  if ((!fontsLoaded && !fontError) || !isReady) {
     return null;
   }
 
@@ -85,7 +105,7 @@ export default function App() {
       <SubscriptionProvider>
         <NavigationContainer>
           <Stack.Navigator 
-            initialRouteName="Login"
+            initialRouteName={initialRoute}
             screenOptions={{
               headerShown: false,
               cardStyle: { backgroundColor: theme.colors.background }

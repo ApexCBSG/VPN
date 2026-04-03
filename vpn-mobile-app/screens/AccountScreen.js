@@ -131,7 +131,7 @@ export default function AccountScreen({ navigation }) {
               <Text style={styles.initials}>{user?.email?.charAt(0).toUpperCase() || 'U'}</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <Text style={styles.userName}>VPN User</Text>
+          <Text style={styles.userName}>{user?.name || 'VPN User'}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
           
           <TouchableOpacity 
@@ -206,7 +206,7 @@ export default function AccountScreen({ navigation }) {
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.versionText}>Sentinel's Veil v1.0.4-Production</Text>
+        <Text style={styles.versionText}>Sentinel Secure Access v1.0.4</Text>
       </ScrollView>
 
       {/* CHANGE PASSWORD MODAL */}
@@ -219,7 +219,7 @@ export default function AccountScreen({ navigation }) {
         <View style={styles.modalView}>
            <BlurView intensity={30} tint="dark" style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                 <Text style={styles.modalTitle}>Update Credentials</Text>
+                 <Text style={styles.modalTitle}>Security Update</Text>
                  <TouchableOpacity onPress={() => setModalVisible(false)}>
                     <X size={24} color={theme.colors.onSurfaceVariant} />
                  </TouchableOpacity>
@@ -231,7 +231,7 @@ export default function AccountScreen({ navigation }) {
                     <TextInput 
                         style={styles.input} 
                         secureTextEntry={!showPwd}
-                        placeholder="Current secret"
+                        placeholder="Required for verification"
                         placeholderTextColor={theme.colors.outline}
                         value={passwords.current}
                         onChangeText={(t) => setPasswords({...passwords, current: t})}
@@ -248,7 +248,7 @@ export default function AccountScreen({ navigation }) {
                     <TextInput 
                         style={styles.input} 
                         secureTextEntry={!showPwd}
-                        placeholder="At least 8 characters"
+                        placeholder="Update password"
                         placeholderTextColor={theme.colors.outline}
                         value={passwords.new}
                         onChangeText={(t) => setPasswords({...passwords, new: t})}
@@ -262,7 +262,7 @@ export default function AccountScreen({ navigation }) {
                     <TextInput 
                         style={styles.input} 
                         secureTextEntry={!showPwd}
-                        placeholder="Repeat new secret"
+                        placeholder="Confirm update"
                         placeholderTextColor={theme.colors.outline}
                         value={passwords.confirm}
                         onChangeText={(t) => setPasswords({...passwords, confirm: t})}
@@ -286,7 +286,7 @@ export default function AccountScreen({ navigation }) {
                     ) : (
                         <>
                             <Save size={18} color={theme.colors.background} />
-                            <Text style={styles.saveText}>UPDATE CREDENTIALS</Text>
+                            <Text style={styles.saveText}>CONFIRM SECURITY UPDATE</Text>
                         </>
                     )}
                  </LinearGradient>

@@ -74,7 +74,7 @@ export default function ForgotPasswordScreen({ navigation }) {
           {loading ? (
             <ActivityIndicator color={theme.colors.background} />
           ) : (
-            <Text style={styles.resetButtonText}>SEND RESET LINK</Text>
+            <Text style={styles.resetButtonText}>SEND RESET TOKEN</Text>
           )}
         </TouchableOpacity>
       </View>

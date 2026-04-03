@@ -79,7 +79,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
           {loading ? (
             <ActivityIndicator color={theme.colors.background} />
           ) : (
-            <Text style={styles.verifyButtonText}>VERIFY EMAIL</Text>
+            <Text style={styles.verifyButtonText}>VERIFY</Text>
           )}
         </TouchableOpacity>
 

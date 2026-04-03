@@ -155,9 +155,9 @@ export default function DashboardScreen({ navigation, route }) {
           </TouchableOpacity>
 
           <View style={styles.headerInfo}>
-             <Text style={styles.headerTitle}>SENTINEL NODE</Text>
+             <Text style={styles.headerTitle}>VPN DASHBOARD</Text>
              <Text style={[styles.headerStatus, isConnected && { color: isVerified ? theme.colors.primary : '#ffb300' }]}>
-                {isConnected ? (isVerified ? 'VERIFIED TUNNEL' : 'HANDSHAKE OK') : 'PROTECTION OFF'}
+                {isConnected ? (isVerified ? 'CONNECTION ACTIVE' : 'ESTABLISHING...') : 'NETWORK DISCONNECTED'}
              </Text>
           </View>
 
@@ -181,14 +181,14 @@ export default function DashboardScreen({ navigation, route }) {
                 styles.statusChipText, 
                 isConnected ? (isVerified ? {color: theme.colors.background} : {color: '#ffb300'}) : {color: theme.colors.error}
             ]}>
-                {isConnected ? (isVerified ? 'ENCRYPTED' : 'OS BRIDGE REQUIRED') : 'UNSECURED'}
+                {isConnected ? (isVerified ? 'SECURED' : 'TUNNEL STATUS: PENDING') : 'NOT PROTECTED'}
             </Text>
           </View>
           <Text style={styles.displayStatus}>
-            {isConnected ? 'Active' : 'Standby'}
+            {isConnected ? 'Connected' : 'Disconnected'}
           </Text>
           {isConnected && !isVerified && (
-             <Text style={styles.bridgeInfo}>Protocol handshake successful. Local tunnel pending.</Text>
+             <Text style={styles.bridgeInfo}>Negotiating connection with secure gateway...</Text>
           )}
         </View>
       </View>
@@ -215,7 +215,7 @@ export default function DashboardScreen({ navigation, route }) {
                ) : (
                  <Power size={50} color={theme.colors.background} strokeWidth={2.5} />
                )}
-               <Text style={styles.buttonLabel}>{isConnected ? 'DISCONNECT' : 'INITIALIZE'}</Text>
+               <Text style={styles.buttonLabel}>{isConnected ? 'OFF' : 'ON'}</Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -227,20 +227,20 @@ export default function DashboardScreen({ navigation, route }) {
             style={styles.statItem}
             onPress={() => navigation.navigate('Servers')}
           >
-            <Text style={styles.statLabel}>NODE ARCHITECTURE</Text>
+            <Text style={styles.statLabel}>SERVER REGION</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{selectedServer.name || 'Optimal Route'}</Text>
-              <Text style={styles.statSubValue}>{selectedServer.city || 'Searching...'}, {selectedServer.countryCode || 'Global'}</Text>
+              <Text style={styles.statValue}>{selectedServer.name || 'Optimal Node'}</Text>
+              <Text style={styles.statSubValue}>{selectedServer.city || 'Selecting...'}, {selectedServer.countryCode || 'Global'}</Text>
             </View>
           </TouchableOpacity>
           
           <View style={styles.divider} />
 
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>CORE PROTOCOL</Text>
+            <Text style={styles.statLabel}>SECURITY PROTOCOL</Text>
             <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>WireGuard®</Text>
-              <Text style={styles.statSubValue}>{isConnected ? 'UDP Encrypted' : 'Standby Mode'}</Text>
+              <Text style={styles.statValue}>Standard AES-256</Text>
+              <Text style={styles.statSubValue}>{isConnected ? 'Connection Active' : 'Standby'}</Text>
             </View>
           </View>
         </BlurView>
@@ -252,13 +252,13 @@ export default function DashboardScreen({ navigation, route }) {
            </View>
            <View style={styles.ipDivider} />
            <View style={styles.ipSection}>
-              <Text style={styles.ipLabel}>SENTINEL IP</Text>
+              <Text style={styles.ipLabel}>ASSIGNED GATEWAY</Text>
               <Text style={[styles.ipValue, isVerified && { color: theme.colors.primary }]}>
-                {isConnected ? (publicIP || 'Handshaking...') : '---.---.---.---'}
+                {isConnected ? (publicIP || 'Negotiating...') : '---.---.---.---'}
               </Text>
            </View>
         </View>
-        <Text style={styles.footerBranding}>TUNNEL ARCHITECTURE v4.2.0-STABLE</Text>
+        <Text style={styles.footerBranding}>SECURE TUNNEL NETWORK ACCESS</Text>
       </View>
     </SafeAreaView>
   );

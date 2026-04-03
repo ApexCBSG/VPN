@@ -6,13 +6,14 @@ import { ShieldPlus, Mail, Lock, User } from 'lucide-react-native';
 import { API_URL } from '../config';
 
 export default function RegisterScreen({ navigation }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!email || !password) {
-      Alert.alert('Missing Info', 'Please provide a valid email and security key.');
+    if (!name || !email || !password) {
+      Alert.alert('Incomplete Form', 'Please provide your full name, email address, and a secure password.');
       return;
     }
 
@@ -21,18 +22,18 @@ export default function RegisterScreen({ navigation }) {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ name, email, password })
       });
 
       const data = await response.json();
       if (response.ok) {
-        Alert.alert('Verification Sent', 'Please check your email for the 6-digit code.');
+        Alert.alert('Verification Required', 'A verification code has been dispatched to your email address.');
         navigation.navigate('VerifyEmail', { email });
       } else {
-        Alert.alert('Registration Failed', data.msg || 'Encryption initialization error.');
+        Alert.alert('Registration Error', data.msg || 'The account could not be initialized. Please try again.');
       }
     } catch (error) {
-      Alert.alert('Network Error', 'Could not reach the Sentinel network.');
+      Alert.alert('Connection Error', 'Unable to reach the secure network. Please check your internet connection.');
     } finally {
       setLoading(false);
     }
@@ -52,11 +53,23 @@ export default function RegisterScreen({ navigation }) {
             >
               <ShieldPlus size={24} color={theme.colors.primary} />
             </TouchableOpacity>
-            <Text style={styles.title}>Create Account</Text>
-            <Text style={styles.subtitle}>Join Sentinel and secure your connection</Text>
+            <Text style={styles.title}>Register Account</Text>
+            <Text style={styles.subtitle}>Secure your corporate connectivity by joining Sentinel.</Text>
           </View>
 
           <View style={styles.form}>
+            <View style={styles.inputWrapper}>
+              <User size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
+              <TextInput 
+                style={styles.input} 
+                placeholder="Full Name" 
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                autoCapitalize="words"
+                value={name}
+                onChangeText={setName}
+              />
+            </View>
+
             <View style={styles.inputWrapper}>
               <Mail size={18} color={theme.colors.onSurfaceVariant} style={styles.inputIcon} />
               <TextInput 
@@ -66,6 +79,7 @@ export default function RegisterScreen({ navigation }) {
                 autoCapitalize="none"
                 value={email}
                 onChangeText={setEmail}
+                keyboardType="email-address"
               />
             </View>
 
@@ -90,7 +104,7 @@ export default function RegisterScreen({ navigation }) {
               {loading ? (
                 <ActivityIndicator color={theme.colors.background} />
               ) : (
-                <Text style={styles.actionButtonText}>CREATE ACCOUNT</Text>
+                <Text style={styles.actionButtonText}>SIGN UP</Text>
               )}
             </TouchableOpacity>
 
