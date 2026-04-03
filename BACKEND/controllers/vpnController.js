@@ -71,9 +71,15 @@ exports.connectNode = async (req, res) => {
     }
 
     // 2. Kernel-Level Authorization (THE REAL TEST)
-    // - Full Path to /usr/bin/wg
-    // - Explicitly setting allowed-ips for the peer
-    const sshCommand = `sudo /usr/bin/wg set wg0 peer ${publicKey} allowed-ips ${internalIp}/32`;
+    // - Logic: Identify and PERMANENTLY remove any old peer that might be hogging the internal IP
+    // then authorize the NEW peer with the same IP.
+    const sshCommand = `
+      CURRENT_PEER=$(sudo /usr/bin/wg show wg0 allowed-ips | grep "${internalIp}/32" | awk '{print $1}')
+      if [ ! -z "$CURRENT_PEER" ] && [ "$CURRENT_PEER" != "${publicKey}" ]; then
+        sudo /usr/bin/wg set wg0 peer $CURRENT_PEER remove
+      fi
+      sudo /usr/bin/wg set wg0 peer ${publicKey} allowed-ips ${internalIp}/32
+    `.trim();
     
     try {
       await runSshCommand(node, sshCommand);
@@ -130,9 +136,12 @@ exports.disconnectNode = async (req, res) => {
       lastLog.bytesOut = Math.floor(Math.random() * 200000); 
       await lastLog.save();
 
-      // OPTIONAL: Cleanup kernel peer for large-scale security
-      // const sshCommand = `sudo /usr/bin/wg set wg0 peer ${lastLog.publicKey} remove`;
-      // await runSshCommand(node, sshCommand).catch(e => console.error(e));
+      // Kernel-Level Clean Up
+      const clientPubKey = lastLog.publicKey || peer?.publicKey;
+      if (clientPubKey) {
+        const sshRemove = `sudo /usr/bin/wg set wg0 peer ${clientPubKey} remove`;
+        await runSshCommand(node, sshRemove).catch(e => console.error('[CLEANUP] Failed to remove peer:', e));
+      }
     }
 
     await Node.findByIdAndUpdate(nodeId, { $inc: { load: -5 } });
