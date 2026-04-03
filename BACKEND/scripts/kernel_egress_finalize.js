@@ -21,16 +21,24 @@ async function finalizeNode(node) {
         # 1. Un-Block Forwarding at Kernel Level
         sudo sysctl -w net.ipv4.ip_forward=1
         
-        # 2. Advanced Egress Clamping (The "Internet Fix")
-        # Ensures TCP packets fit through the WireGuard tunnel
+        # 2. Advanced Egress Clamping (The "Mobile Network" Fix)
+        # Prevents packet drops on LTE/5G by adjusting segment size
         sudo iptables -t mangle -A FORWARD -p tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
         
-        # 3. Explicit NAT Route
+        # 3. Explicit NAT Route (Masquerading)
+        # Map the internal WireGuard subnet (10.64.0.0/24) to the external IP
         sudo iptables -t nat -A POSTROUTING -s 10.64.0.0/24 -o $PUBLIC_IF -j MASQUERADE
         
         # 4. Filter Table Persistence
         sudo iptables -A FORWARD -i wg0 -j ACCEPT
         sudo iptables -A FORWARD -o wg0 -j ACCEPT
+        
+        # 5. Persist Rules (Survives Reboot)
+        if ! command -v iptables-save &> /dev/null; then
+          sudo apt-get update && sudo apt-get install -y iptables-persistent
+        fi
+        sudo iptables-save | sudo tee /etc/iptables/rules.v4
+        sudo netfilter-persistent save
         
         echo "STATUS: Kernel Clamp Applied on $PUBLIC_IF"
       `;

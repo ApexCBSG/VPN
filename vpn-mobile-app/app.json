@@ -40,14 +40,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "d218ecc4-1bef-4a9f-ac9f-0c8d7f54618f"
+        "projectId": "fc1604be-b5d3-4d73-8196-8412fa1422d1"
       }
     },
+    "owner": "zarin-helpdesk",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/d218ecc4-1bef-4a9f-ac9f-0c8d7f54618f"
+      "url": "https://u.expo.dev/fc1604be-b5d3-4d73-8196-8412fa1422d1"
     }
   }
 }

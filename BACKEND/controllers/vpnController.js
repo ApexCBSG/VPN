@@ -4,24 +4,52 @@ const UsageLog = require('../models/UsageLog');
 const { Client } = require('ssh2'); 
 
 /**
- * Sentinel Industrial SSH Bridge
- * Executes kernel-level WireGuard commands with full verification.
+ * Sentinel Global Connection Pool
+ * Prevents "IP Banning" by keeping a single persistent connection to each node.
  */
-const runSshCommand = (node, command) => {
-  console.log(`[SSH_BRIDGE] Executing on ${node.ipAddress}: ${command}`);
+const connectionPool = new Map();
+
+const getPooledConnection = (node) => {
+  if (connectionPool.has(node.ipAddress)) {
+    const pooled = connectionPool.get(node.ipAddress);
+    if (pooled.isConnected) return Promise.resolve(pooled.conn);
+  }
+
   return new Promise((resolve, reject) => {
+    console.log(`[POOL] Establishing persistent bridge to ${node.ipAddress}...`);
     const conn = new Client();
+    
     conn.on('ready', () => {
+      connectionPool.set(node.ipAddress, { conn, isConnected: true });
+      resolve(conn);
+    }).on('error', (err) => {
+      console.error(`[POOL] Error connecting to ${node.ipAddress}:`, err.message);
+      connectionPool.delete(node.ipAddress);
+      reject(err);
+    }).on('end', () => {
+      connectionPool.delete(node.ipAddress);
+    }).connect({
+      host: node.ipAddress,
+      port: 22,
+      username: 'root',
+      password: process.env.VPS_PASSWORD,
+      readyTimeout: 30000,
+      tryKeyboard: true // Matches manual terminal behavior
+    });
+  });
+};
+
+const runSshCommand = async (node, command) => {
+  console.log(`[SSH_BRIDGE] Executing on ${node.ipAddress}: ${command}`);
+  try {
+    const conn = await getPooledConnection(node);
+    return new Promise((resolve, reject) => {
       conn.exec(command, (err, stream) => {
         if (err) return reject(err);
         let stdout = '';
         let stderr = '';
-        stream.on('close', (code, signal) => {
-          conn.end();
-          if (code !== 0) {
-            console.error(`[SSH_BRIDGE] Command failed with code ${code}. Stderr: ${stderr}`);
-            return reject(new Error(`Kernel command failed: ${stderr}`));
-          }
+        stream.on('close', (code) => {
+          if (code !== 0) return reject(new Error(stderr || 'Kernel failure'));
           resolve({ code, stdout });
         }).on('data', (data) => {
           stdout += data;
@@ -29,17 +57,10 @@ const runSshCommand = (node, command) => {
           stderr += data;
         });
       });
-    }).on('error', (err) => {
-      console.error(`[SSH_BRIDGE] Connection Error: ${err.message}`);
-      reject(err);
-    }).connect({
-      host: node.ipAddress,
-      port: 22,
-      username: 'root',
-      password: process.env.VPS_PASSWORD,
-      readyTimeout: 5000 // Prevents hanging connections
     });
-  });
+  } catch (err) {
+    throw new Error(`Sentinel Node unavailable: ${err.message}`);
+  }
 };
 
 exports.connectNode = async (req, res) => {
