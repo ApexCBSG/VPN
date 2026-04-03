@@ -37,7 +37,9 @@ export const connectVPN = async (handshakeData) => {
     // 4. Construct Verified Configuration (v1.0.22 Native Spec)
     const config = {
       privateKey: privateKey,
-      publicKey: handshakeData.serverPublicKey,
+      
+      // Native Property: 'publicKey' (Singular, String) - VERIFIED IN KOTLIN SOURCE LINE 161
+      publicKey: handshakeData.serverPublicKey, 
       
       // Native Property: 'address' (Singular, String)
       address: interfaceAddress, 
@@ -50,7 +52,7 @@ export const connectVPN = async (handshakeData) => {
       serverPort: serverPort,
 
       dns: ['1.1.1.1', '8.8.8.8'],
-      mtu: 1280
+      mtu: 1200 // Industry "Safe Mode" for mobile (Fixes LTE/5G packet drop)
     };
 
     console.log('[VPN_BRIDGE] Executing Native Sync (PRO):', JSON.stringify(config, null, 2));
