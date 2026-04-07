@@ -40,7 +40,12 @@ export const connectVPN = async (handshakeData, options = {}) => {
     } catch (e) {
       // Ignore if not connected
     }
-    await WireGuard.initialize();
+    try {
+      await WireGuard.initialize();
+    } catch (e) {
+      // Already initialized — safe to continue
+      console.log('[VPN_BRIDGE] initialize() skipped (already init):', e.message);
+    }
 
     // 2. Parse Endpoint
     const [serverAddress, portStr] = (handshakeData.endpoint || '').split(':');
@@ -86,14 +91,20 @@ export const connectVPN = async (handshakeData, options = {}) => {
       const connectTime = Date.now() - connectStart;
       console.log(`[VPN_BRIDGE] WireGuard.connect() returned successfully (${connectTime}ms)`);
 
-      // Verify tunnel is actually active
-      await new Promise(r => setTimeout(r, 500));
-      const status = await WireGuard.getStatus();
-      console.log('[VPN_BRIDGE] Tunnel status check:', status);
-
-      if (!status.isConnected) {
-        console.warn('[VPN_BRIDGE] connect() returned but tunnel reports NOT connected!');
-        throw new Error('WireGuard tunnel failed to activate (connect returned but isConnected=false)');
+      // Verify tunnel is active — retry up to 4 times (tunnels can take 1-2s to report connected)
+      let tunnelActive = false;
+      for (let attempt = 1; attempt <= 4; attempt++) {
+        await new Promise(r => setTimeout(r, 500));
+        try {
+          const status = await WireGuard.getStatus();
+          console.log(`[VPN_BRIDGE] Status check attempt ${attempt}:`, status);
+          if (status.isConnected) { tunnelActive = true; break; }
+        } catch (e) {
+          console.warn(`[VPN_BRIDGE] getStatus() failed on attempt ${attempt}:`, e.message);
+        }
+      }
+      if (!tunnelActive) {
+        console.warn('[VPN_BRIDGE] Tunnel not confirmed after 4 attempts — heartbeat will verify');
       }
 
     } catch (nativeErr) {

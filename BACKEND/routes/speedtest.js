@@ -9,7 +9,7 @@ router.get('/ping', (req, res) => {
 
 // 2. Download Endpoint (Streams a 3MB chunk)
 // Note: We generate this once on start to avoid CPU overhead during test
-const DOWNLOAD_BUFFER = crypto.randomBytes(3 * 1024 * 1024); // 3MB
+const DOWNLOAD_BUFFER = crypto.randomBytes(10 * 1024 * 1024); // 10MB
 
 router.get('/download', (req, res) => {
     console.log(`[SPEEDTEST] Download start: ${new Date().toISOString()}`);

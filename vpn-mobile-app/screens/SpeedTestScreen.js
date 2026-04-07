@@ -91,29 +91,31 @@ export default function SpeedTestScreen({ route }) {
             setPing(Math.floor(pings.reduce((a, b) => a + b) / pings.length));
         }
 
-        // 2. FAST DOWNLOAD TEST (3MB)
+        // 2. DOWNLOAD TEST — 3 parallel streams for accuracy
         setPhase(PHASES.DOWNLOAD);
         const dStart = performance.now();
-        const dResponse = await fetch(`${targetHost}/download`);
-        const dBlob = await dResponse.blob();
+        const [b1, b2, b3] = await Promise.all([
+            fetch(`${targetHost}/download`).then(r => r.blob()),
+            fetch(`${targetHost}/download`).then(r => r.blob()),
+            fetch(`${targetHost}/download`).then(r => r.blob()),
+        ]);
         const dEnd = performance.now();
-        
+        const totalBytes = b1.size + b2.size + b3.size;
         const dDurationSec = (dEnd - dStart) / 1000;
-        const dMbps = ((dBlob.size * 8) / dDurationSec) / (1024 * 1024);
-        
+        const dMbps = ((totalBytes * 8) / dDurationSec) / (1024 * 1024);
+
         setDownload(parseFloat(dMbps.toFixed(1)));
         Animated.timing(animatedValue, { toValue: Math.min(200, dMbps), duration: 800, useNativeDriver: false }).start();
-        
+
         await new Promise(r => setTimeout(r, 600));
 
-        // 3. FAST UPLOAD TEST (1MB)
+        // 3. UPLOAD TEST — 3MB payload
         setPhase(PHASES.UPLOAD);
         Animated.timing(animatedValue, { toValue: 0, duration: 300, useNativeDriver: false }).start();
-        
-        const uSizeMB = 1;
-        const uBuffer = new Uint8Array(uSizeMB * 1024 * 1024);
-        for(let i=0; i<uBuffer.length; i++) uBuffer[i] = Math.floor(Math.random() * 256);
-        
+
+        const uSizeMB = 3;
+        const uBuffer = new Uint8Array(uSizeMB * 1024 * 1024).fill(0x55);
+
         const uStart = performance.now();
         await fetch(`${targetHost}/upload`, {
             method: 'POST',
@@ -121,7 +123,7 @@ export default function SpeedTestScreen({ route }) {
             body: uBuffer
         });
         const uEnd = performance.now();
-        
+
         const uDurationSec = (uEnd - uStart) / 1000;
         const uMbps = ((uBuffer.length * 8) / uDurationSec) / (1024 * 1024);
 

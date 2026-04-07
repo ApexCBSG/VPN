@@ -36,6 +36,7 @@ export default function DashboardScreen({ navigation, route }) {
   const [publicIP, setPublicIP] = useState(null);
   const [pendingConnection, setPendingConnection] = useState(null);
   const [debugInfo, setDebugInfo] = useState('');
+  const [connectedNodeId, setConnectedNodeId] = useState(null);
 
   useEffect(() => {
     const fetchInitial = async () => {
@@ -97,11 +98,26 @@ export default function DashboardScreen({ navigation, route }) {
 
   const handleToggleConnection = async () => {
     if (isConnected) {
+      // 1. Disconnect native tunnel first
       await disconnectVPN().catch(() => {});
+      // 2. Tell backend to remove peer from WireGuard and update load
+      if (connectedNodeId) {
+        try {
+          const token = await SecureStore.getItemAsync('userToken');
+          await fetch(`${API_URL}/vpn/disconnect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ nodeId: connectedNodeId })
+          });
+        } catch (e) {
+          console.warn('[DISCONNECT] Backend cleanup failed:', e.message);
+        }
+      }
       setIsConnected(false);
       setIsVerified(false);
       setPublicIP(null);
       setDebugInfo('');
+      setConnectedNodeId(null);
       return;
     }
 
@@ -114,8 +130,19 @@ export default function DashboardScreen({ navigation, route }) {
         return;
       }
 
-      // 0. Kill any stale VPN tunnel and re-capture the real IP
+      // 0. Kill any stale VPN tunnel, notify backend, re-capture the real IP
       await disconnectVPN().catch(() => {});
+      if (connectedNodeId) {
+        try {
+          const tk = await SecureStore.getItemAsync('userToken');
+          await fetch(`${API_URL}/vpn/disconnect`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': tk },
+            body: JSON.stringify({ nodeId: connectedNodeId })
+          });
+        } catch (e) { /* non-fatal */ }
+        setConnectedNodeId(null);
+      }
       await new Promise(r => setTimeout(r, 1000));
       const freshIP = await getPublicIP();
       if (freshIP && freshIP !== initialIP) {
@@ -167,6 +194,7 @@ export default function DashboardScreen({ navigation, route }) {
       // 4. ACTIVATE NATIVE TUNNEL - pass split tunneling options
       // Save server for auto-connect next time
       await setLastServer(targetServer);
+      setConnectedNodeId(targetServer._id);
 
       let vpnResult;
       try {
