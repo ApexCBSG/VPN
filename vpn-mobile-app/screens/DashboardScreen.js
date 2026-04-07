@@ -22,12 +22,16 @@ import { getPublicIP } from '../utils/network';
 import { runVPNDiagnostics } from '../utils/vpnDiagnostics';
 
 import { connectVPN, disconnectVPN } from '../utils/vpnBridge';
+import { useVPNSettings } from '../context/VPNSettingsContext';
 
 const { width } = Dimensions.get('window');
 
 export default function DashboardScreen({ navigation, route }) {
+  const { autoConnect, splitTunnelEnabled, splitTunnelApps, setLastServer, lastServer } = useVPNSettings();
+
   const [isConnected, setIsConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [autoConnectTriggered, setAutoConnectTriggered] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [initialIP, setInitialIP] = useState(null);
   const [publicIP, setPublicIP] = useState(null);
@@ -41,6 +45,19 @@ export default function DashboardScreen({ navigation, route }) {
     };
     fetchInitial();
   }, []);
+
+  // Auto-connect on app launch if enabled and not already triggered
+  useEffect(() => {
+    if (autoConnect && !autoConnectTriggered && !isConnected && !connecting) {
+      console.log('[AUTO-CONNECT] Auto-connect enabled, triggering connection...');
+      setAutoConnectTriggered(true);
+      // Small delay to let the screen fully mount and IP fetch complete
+      const timer = setTimeout(() => {
+        handleToggleConnection();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [autoConnect, autoConnectTriggered]);
 
   // Handle app returning from foreground (after user grants VPN permission)
   useEffect(() => {
@@ -62,7 +79,7 @@ export default function DashboardScreen({ navigation, route }) {
     if (isConnected && !isVerified) {
       interval = setInterval(async () => {
         const currentIP = await getPublicIP();
-        if (currentIP && currentIP !== initialIP) {
+        if (currentIP && (currentIP !== initialIP || currentIP === selectedServer?.ipAddress)) {
           console.log('[HEARTBEAT] Tunnel Verified via IP Shift:', currentIP);
           setPublicIP(currentIP);
           setIsVerified(true);
@@ -96,33 +113,44 @@ export default function DashboardScreen({ navigation, route }) {
         return;
       }
 
-      // 1. Auto-select server if none is selected
+      // 0. Kill any stale VPN tunnel and re-capture the real IP
+      await disconnectVPN().catch(() => {});
+      await new Promise(r => setTimeout(r, 1000));
+      const freshIP = await getPublicIP();
+      if (freshIP && freshIP !== initialIP) {
+        console.log('[CONNECT] Re-captured real IP after stale tunnel cleanup:', freshIP);
+        setInitialIP(freshIP);
+      }
+      const baseIP = freshIP || initialIP;
+
+      // 1. Auto-select server: route param > last server > first available
       let targetServer = selectedServer;
       if (!targetServer._id) {
-        const nodeRes = await fetch(`${API_URL}/nodes`);
-        const nodes = await nodeRes.json();
-        if (nodeRes.ok && nodes.length > 0) {
-          targetServer = nodes[0];
+        // Try last used server first (auto-connect convenience)
+        if (lastServer?._id) {
+          targetServer = lastServer;
+          console.log('[CONNECT] Using last server:', lastServer.name);
         } else {
-          throw new Error('No active VPN nodes available.');
+          const nodeRes = await fetch(`${API_URL}/nodes`);
+          const nodes = await nodeRes.json();
+          if (nodeRes.ok && nodes.length > 0) {
+            targetServer = nodes[0];
+          } else {
+            throw new Error('No active VPN nodes available.');
+          }
         }
       }
 
-      // 2. Generate/Get WireGuard Keys (Sentinel Auto-Rotation Fix)
+      // 2. Persistent Security Keys (Handshake Stabilization)
       let clientPubKey = await SecureStore.getItemAsync('wg_public_key');
       let clientPrivKey = await SecureStore.getItemAsync('wg_private_key');
-      
-      // If we were previously stuck or keys are missing, force a fresh rotation
-      if (!isVerified && isConnected) {
-        console.log('[SECURITY] Stale connection detected. Rotating keys...');
-        clientPubKey = null; 
-      }
 
       if (!clientPubKey || !clientPrivKey) {
         const { publicKey, privateKey } = generateKeyPair();
         await SecureStore.setItemAsync('wg_public_key', publicKey);
         await SecureStore.setItemAsync('wg_private_key', privateKey);
         clientPubKey = publicKey;
+        console.log('[SECURITY] Generated New Persistent Keys:', clientPubKey);
       }
 
       // 3. Handshake with Sentinel Node
@@ -135,13 +163,32 @@ export default function DashboardScreen({ navigation, route }) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.msg || 'Handshake failed.');
 
-      // 4. ACTIVATE NATIVE TUNNEL (The "Real" VPN Step) - BEFORE marking as connected
+      // 4. ACTIVATE NATIVE TUNNEL - pass split tunneling options
+      // Save server for auto-connect next time
+      await setLastServer(targetServer);
+
       let vpnResult;
       try {
-        vpnResult = await connectVPN(data.config);
+        console.log('[DASHBOARD] Activating native VPN tunnel...');
+
+        // Build split tunneling options
+        const vpnOptions = {};
+        if (splitTunnelEnabled && splitTunnelApps.length > 0) {
+          vpnOptions.excludedApps = splitTunnelApps;
+          console.log('[DASHBOARD] Split tunnel active, excluding:', splitTunnelApps);
+        }
+
+        // Add timeout in case native module hangs
+        const vpnPromise = connectVPN(data.config, vpnOptions);
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('VPN tunnel activation timeout (30s)')), 30000)
+        );
+        
+        vpnResult = await Promise.race([vpnPromise, timeoutPromise]);
+        
         if (vpnResult === 'PERMISSION_PENDING') {
           console.log('[VPN] Waiting for Android VPN permission dialog...');
-          setPendingConnection(data.config); // Store for retry after permission
+          setPendingConnection(data.config);
           Alert.alert(
             'VPN Permission',
             'Android is requesting permission to create a local VPN tunnel.\n\nTap "Accept" on the system dialog that appears next.',
@@ -150,13 +197,15 @@ export default function DashboardScreen({ navigation, route }) {
           setConnecting(false);
           return;
         }
+        
+        console.log('[DASHBOARD] ✅ VPN tunnel result:', vpnResult);
       } catch (nativeErr) {
-        console.error('[Native] VPN Activation Error:', nativeErr);
-        setDebugInfo(`Error: ${nativeErr.message || nativeErr.toString()}`);
+        console.error('[Native] VPN Activation Error:', nativeErr.message || nativeErr);
+        setDebugInfo(`Tunnel Error: ${nativeErr.message || 'Unknown'}`);
         Alert.alert(
           'Connection Failed', 
           'Failed to activate VPN tunnel:\n\n' + (nativeErr.message || 'Unknown error') +
-          '\n\nMake sure you have Android 5.0+ and try again.',
+          '\n\nMake sure:\n- Android VPN permission is granted\n- App has required permissions\n- Try again.',
           [{ text: 'OK' }]
         );
         setConnecting(false);
@@ -167,28 +216,36 @@ export default function DashboardScreen({ navigation, route }) {
       setIsConnected(true);
       
       // 5. REAL-TIME NETWORK AUDIT (Proof-of-Life)
-      // Wait 3 seconds for tunnel to stabilize
+      console.log('[DASHBOARD] Waiting 3 seconds for tunnel to stabilize...');
       await new Promise(r => setTimeout(r, 3000));
       
+      console.log('[DASHBOARD] Fetching current public IP...');
       const myIP = await getPublicIP();
-      setPublicIP(myIP);
       
-      console.log('[DASHBOARD] IP Verification:', {
-        targetServer: targetServer.ipAddress,
-        myIP: myIP,
-        match: myIP === targetServer.ipAddress
-      });
-      
-      if (myIP && myIP !== targetServer.ipAddress) {
-         // IP changed! Tunnel is working
-         console.log('[NETWORK] ✅ Tunnel verified via IP change');
-         setIsVerified(true);
+      if (!myIP) {
+        console.warn('[NETWORK] ⚠️ Could not fetch public IP (network unreachable?)');
+        setDebugInfo('Network unreachable - tunnel may not be active');
+        setPublicIP('Unknown');
+        setIsVerified(false);
       } else {
-         // IP didn't change - might be due to IP leaking or VPN issue
-         console.warn('[NETWORK] IP verification inconclusive. Running diagnostics...');
-         const diag = await runVPNDiagnostics(initialIP);
-         console.log('[DIAGNOSTICS]', JSON.stringify(diag, null, 2));
-         setDebugInfo(`IP unchanged. Check server connectivity.`);
+        setPublicIP(myIP);
+        console.log('[NETWORK] Current IP:', myIP, 'Base IP:', baseIP, 'Server IP:', targetServer.ipAddress);
+
+        if (myIP !== baseIP) {
+          // IP changed! Tunnel is working
+          console.log('[NETWORK] ✅ IP changed from', baseIP, 'to', myIP, '- Tunnel verified!');
+          setIsVerified(true);
+        } else {
+          // IP didn't change - but check if it matches the server IP (tunnel may still be working)
+          if (myIP === targetServer.ipAddress) {
+            console.log('[NETWORK] ✅ IP matches server IP - Tunnel is active!');
+            setIsVerified(true);
+          } else {
+            console.warn('[NETWORK] ⚠️ IP unchanged:', myIP, '(started as', baseIP, ')');
+            setDebugInfo(`IP not changed. Check server or restart.`);
+            setIsVerified(false);
+          }
+        }
       }
     } catch (error) {
       console.error(error);
@@ -435,7 +492,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: theme.spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   glassPanel: {
     flexDirection: 'row',

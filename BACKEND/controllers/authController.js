@@ -4,6 +4,7 @@ const speakeasy = require('speakeasy');
 const qrcode = require('qrcode');
 const User = require('../models/User');
 const sendEmail = require('../utils/sendEmail');
+const { verificationEmail, passwordResetEmail, welcomeEmail, passwordChangedEmail } = require('../utils/emailTemplates');
 
 
 const generateToken = (id) => {
@@ -36,11 +37,12 @@ exports.register = async (req, res) => {
 
     
     try {
+      const emailTemplate = verificationEmail(verificationCode);
       await sendEmail({
         email: user.email,
-        subject: 'Verify your Sentinel account',
-        message: `Your verification code is: ${verificationCode}. It expires in 10 minutes.`,
-        html: `<h1>Welcome to Sentinel's Veil</h1><p>Your verification code is: <b>${verificationCode}</b></p>`
+        subject: emailTemplate.subject,
+        message: emailTemplate.text,
+        html: emailTemplate.html
       });
 
       res.status(201).json({ msg: 'Verification code sent to email' });
@@ -152,15 +154,13 @@ exports.forgotPassword = async (req, res) => {
     await user.save();
 
     
-    const resetUrl = `sentinel://reset-password/${resetToken}`;
-    const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please use this token to reset your password: ${resetToken}`;
-
     try {
+      const emailTemplate = passwordResetEmail(resetToken);
       await sendEmail({
         email: user.email,
-        subject: 'Password reset token',
-        message,
-        html: `<p>Use this token to reset your password in the app:</p><h2>${resetToken}</h2>`
+        subject: emailTemplate.subject,
+        message: emailTemplate.text,
+        html: emailTemplate.html
       });
 
       res.status(200).json({ msg: 'Email sent' });
@@ -195,6 +195,15 @@ exports.resetPassword = async (req, res) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
     await user.save();
+
+    // Send confirmation email
+    const emailTemplate = passwordChangedEmail();
+    await sendEmail({
+      email: user.email,
+      subject: emailTemplate.subject,
+      message: emailTemplate.text,
+      html: emailTemplate.html
+    }).catch(err => console.error('Password change confirmation email failed:', err));
 
     res.status(200).json({ msg: 'Password reset success' });
   } catch (err) {
@@ -295,6 +304,15 @@ exports.updatePassword = async (req, res) => {
     // 2. Set new password (will be hashed by pre('save') hook)
     user.password = newPassword;
     await user.save();
+
+    // Send confirmation email
+    const emailTemplate = passwordChangedEmail();
+    await sendEmail({
+      email: user.email,
+      subject: emailTemplate.subject,
+      message: emailTemplate.text,
+      html: emailTemplate.html
+    }).catch(err => console.error('Password change confirmation email failed:', err));
 
     res.json({ msg: 'Password updated successfully' });
   } catch (err) {

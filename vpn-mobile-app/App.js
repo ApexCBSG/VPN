@@ -20,8 +20,10 @@ import VerifyEmailScreen from './screens/VerifyEmailScreen';
 import ForgotPasswordScreen from './screens/ForgotPasswordScreen';
 import AccountScreen from './screens/AccountScreen';
 import PaywallScreen from './screens/PaywallScreen';
+import VPNSettingsScreen from './screens/VPNSettingsScreen';
 import { theme } from './styles/theme';
 import { SubscriptionProvider } from './context/SubscriptionContext';
+import { VPNSettingsProvider } from './context/VPNSettingsContext';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -103,6 +105,7 @@ export default function App() {
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
       <SubscriptionProvider>
+        <VPNSettingsProvider>
         <NavigationContainer>
           <Stack.Navigator 
             initialRouteName={initialRoute}
@@ -118,8 +121,10 @@ export default function App() {
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Servers" component={ServerListScreen} />
             <Stack.Screen name="Paywall" component={PaywallScreen} />
+            <Stack.Screen name="VPNSettings" component={VPNSettingsScreen} />
           </Stack.Navigator>
         </NavigationContainer>
+        </VPNSettingsProvider>
       </SubscriptionProvider>
     </SafeAreaProvider>
   );

@@ -76,7 +76,7 @@ exports.connectNode = async (req, res) => {
     let internalIp;
     if (!peer) {
       const peerCount = await WireGuardPeer.countDocuments({ nodeId });
-      // Logic: Start from 10.64.0.2 to avoid 10.0.0.1 collisions
+      // Logic: Start from 10.64.0.2 to avoid 10.64.0.1 (server) collision
       internalIp = `10.64.0.${(peerCount % 250) + 2}`; 
       
       peer = new WireGuardPeer({
@@ -147,22 +147,24 @@ exports.disconnectNode = async (req, res) => {
     const node = await Node.findById(nodeId);
     if (!node) return res.status(404).json({ msg: 'Node not found' });
 
+    // Fetch the peer record to get the actual public key for cleanup
+    const peer = await WireGuardPeer.findOne({ userId, nodeId });
+
     const lastLog = await UsageLog.findOne({ userId, nodeId, action: 'connected' }).sort({ createdAt: -1 });
-    
+
     if (lastLog) {
       const duration = Math.round((new Date() - lastLog.createdAt) / 1000);
       lastLog.action = 'disconnected';
       lastLog.duration = duration;
       lastLog.bytesIn = Math.floor(Math.random() * 500000);
-      lastLog.bytesOut = Math.floor(Math.random() * 200000); 
+      lastLog.bytesOut = Math.floor(Math.random() * 200000);
       await lastLog.save();
+    }
 
-      // Kernel-Level Clean Up
-      const clientPubKey = lastLog.publicKey || peer?.publicKey;
-      if (clientPubKey) {
-        const sshRemove = `sudo /usr/bin/wg set wg0 peer ${clientPubKey} remove`;
-        await runSshCommand(node, sshRemove).catch(e => console.error('[CLEANUP] Failed to remove peer:', e));
-      }
+    // Kernel-Level Clean Up - use the peer's public key from the WireGuardPeer record
+    if (peer?.publicKey) {
+      const sshRemove = `sudo /usr/bin/wg set wg0 peer ${peer.publicKey} remove`;
+      await runSshCommand(node, sshRemove).catch(e => console.error('[CLEANUP] Failed to remove peer:', e));
     }
 
     await Node.findByIdAndUpdate(nodeId, { $inc: { load: -5 } });

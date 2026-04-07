@@ -1,5 +1,5 @@
 diff --git a/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt b/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt
-index 0379b7c..d0c8461 100644
+index 0379b7c..5fc0a20 100644
 --- a/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt
 +++ b/node_modules/react-native-wireguard-vpn/android/src/main/java/com/wireguardvpn/WireGuardVpnModule.kt
 @@ -1,5 +1,7 @@
@@ -30,3 +30,25 @@ index 0379b7c..d0c8461 100644
              println("Received config: $config")
              
              if (backend == null) {
+@@ -140,6 +155,21 @@ class WireGuardVpnModule(reactContext: ReactApplicationContext) : ReactContextBa
+                 interfaceBuilder.setMtu(mtu)
+             }
+ 
++            // Split Tunneling: exclude apps from VPN tunnel
++            if (config.hasKey("excludedApps")) {
++                val excludedApps = config.getArray("excludedApps")?.toArrayList()
++                excludedApps?.forEach { app ->
++                    (app as? String)?.let { packageName ->
++                        try {
++                            interfaceBuilder.excludeApplication(packageName)
++                            println("Excluded app from VPN: $packageName")
++                        } catch (e: Exception) {
++                            println("Failed to exclude app $packageName: ${e.message}")
++                        }
++                    }
++                }
++            }
++
+             val peerBuilder = Peer.Builder()
+             
+             // Parse public key

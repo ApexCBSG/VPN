@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   },
   actions: {
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   nodeBanner: {
     flexDirection: 'row',

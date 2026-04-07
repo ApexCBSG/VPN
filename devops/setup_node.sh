@@ -24,12 +24,12 @@ PUB_KEY=$(cat /etc/wireguard/public.key)
 cat > /etc/wireguard/wg0.conf <<EOF
 [Interface]
 PrivateKey = $PRIV_KEY
-Address = 10.0.0.1/24
+Address = 10.64.0.1/24
 ListenPort = 51820
-SaveConfig = true
+SaveConfig = false
 
-PostUp = iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-PostDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PostUp = iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
 EOF
 
 # Setup Firewall

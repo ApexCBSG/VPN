@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     padding: theme.spacing.lg,
+    paddingBottom: 100,
   },
   header: {
     marginBottom: theme.spacing.xl,

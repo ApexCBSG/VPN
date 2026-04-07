@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
-import { User, Mail, CreditCard, Bell, Shield, LogOut, ChevronRight, Lock, Eye, EyeOff, Save, X } from 'lucide-react-native';
+import { User, Mail, CreditCard, Bell, Shield, LogOut, ChevronRight, Lock, Eye, EyeOff, Save, X, Settings2 } from 'lucide-react-native';
 import * as SecureStore from 'expo-secure-store';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -172,8 +172,22 @@ export default function AccountScreen({ navigation }) {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>VPN Configuration</Text>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('VPNSettings')}
+          >
+            <View style={styles.menuLabel}>
+              <Settings2 size={20} color={theme.colors.onSurfaceVariant} strokeWidth={1.5} />
+              <Text style={styles.menuText}>Kill Switch & Tunnel Options</Text>
+            </View>
+            <ChevronRight size={16} color={theme.colors.outline} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security & Privacy</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.menuItem}
             onPress={() => setModalVisible(true)}
           >
@@ -189,7 +203,7 @@ export default function AccountScreen({ navigation }) {
               <Bell size={20} color={theme.colors.onSurfaceVariant} strokeWidth={1.5} />
               <Text style={styles.menuText}>In-App Notifications</Text>
             </View>
-            <Switch 
+            <Switch
               value={notifications}
               onValueChange={setNotifications}
               trackColor={{ false: theme.colors.surfaceContainerHigh, true: theme.colors.primary }}
@@ -436,7 +450,7 @@ const styles = StyleSheet.create({
   versionText: {
     textAlign: 'center',
     marginTop: 30,
-    marginBottom: 60,
+    marginBottom: 110,
     fontSize: 11,
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurfaceVariant,

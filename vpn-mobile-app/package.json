@@ -19,6 +19,7 @@
     "base64-js": "^1.5.1",
     "expo": "~55.0.9",
     "expo-blur": "~55.0.10",
+    "expo-dev-client": "~55.0.22",
     "expo-font": "~55.0.4",
     "expo-linear-gradient": "~55.0.9",
     "expo-secure-store": "~55.0.9",
