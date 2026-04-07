@@ -55,7 +55,7 @@ exports.register = async (req, res) => {
     }
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -92,7 +92,7 @@ exports.verifyEmail = async (req, res) => {
     );
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -132,7 +132,7 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -172,7 +172,7 @@ exports.forgotPassword = async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -194,7 +194,7 @@ exports.resetPassword = async (req, res) => {
     user.password = req.body.password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpire = undefined;
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
     // Send confirmation email
     const emailTemplate = passwordChangedEmail();
@@ -208,7 +208,7 @@ exports.resetPassword = async (req, res) => {
     res.status(200).json({ msg: 'Password reset success' });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -231,7 +231,7 @@ exports.login2FA = async (req, res) => {
     const token = generateToken(user.id);
     res.json({ token });
   } catch (err) {
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -249,7 +249,7 @@ exports.generate2FA = async (req, res) => {
     const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
     res.json({ qrCodeUrl, secret: secret.base32 });
   } catch (err) {
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -271,7 +271,7 @@ exports.verifyAndEnable2FA = async (req, res) => {
     await user.save();
     res.json({ msg: '2FA enabled successfully' });
   } catch (err) {
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 // @desc    Get current logged in user
@@ -282,7 +282,7 @@ exports.getMe = async (req, res) => {
     const user = await User.findById(req.user.id).select('-password');
     res.json(user);
   } catch (err) {
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
 
@@ -317,6 +317,6 @@ exports.updatePassword = async (req, res) => {
     res.json({ msg: 'Password updated successfully' });
   } catch (err) {
     console.error(err);
-    res.status(500).send('Server error');
+    res.status(500).json({ msg: 'Server error' });
   }
 };
