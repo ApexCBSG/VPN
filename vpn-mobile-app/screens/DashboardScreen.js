@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
 import { Settings, Globe, Power, ShieldCheck, ShieldAlert } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import * as SecureStore from 'expo-secure-store';
 import { generateKeyPair } from '../utils/wireguard';
 import { API_URL } from '../config';
@@ -83,8 +82,9 @@ export default function DashboardScreen({ navigation, route }) {
           console.log('[HEARTBEAT] Tunnel Verified via IP Shift:', currentIP);
           setPublicIP(currentIP);
           setIsVerified(true);
+          setDebugInfo('');
         }
-      }, 2500);
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [isConnected, isVerified, initialIP]);
@@ -101,6 +101,7 @@ export default function DashboardScreen({ navigation, route }) {
       setIsConnected(false);
       setIsVerified(false);
       setPublicIP(null);
+      setDebugInfo('');
       return;
     }
 
@@ -216,8 +217,8 @@ export default function DashboardScreen({ navigation, route }) {
       setIsConnected(true);
       
       // 5. REAL-TIME NETWORK AUDIT (Proof-of-Life)
-      console.log('[DASHBOARD] Waiting 3 seconds for tunnel to stabilize...');
-      await new Promise(r => setTimeout(r, 3000));
+      console.log('[DASHBOARD] Waiting 1 second for tunnel to stabilize...');
+      await new Promise(r => setTimeout(r, 1000));
       
       console.log('[DASHBOARD] Fetching current public IP...');
       const myIP = await getPublicIP();
@@ -232,14 +233,14 @@ export default function DashboardScreen({ navigation, route }) {
         console.log('[NETWORK] Current IP:', myIP, 'Base IP:', baseIP, 'Server IP:', targetServer.ipAddress);
 
         if (myIP !== baseIP) {
-          // IP changed! Tunnel is working
           console.log('[NETWORK] ✅ IP changed from', baseIP, 'to', myIP, '- Tunnel verified!');
           setIsVerified(true);
+          setDebugInfo('');
         } else {
-          // IP didn't change - but check if it matches the server IP (tunnel may still be working)
           if (myIP === targetServer.ipAddress) {
             console.log('[NETWORK] ✅ IP matches server IP - Tunnel is active!');
             setIsVerified(true);
+            setDebugInfo('');
           } else {
             console.warn('[NETWORK] ⚠️ IP unchanged:', myIP, '(started as', baseIP, ')');
             setDebugInfo(`IP not changed. Check server or restart.`);
@@ -339,28 +340,18 @@ export default function DashboardScreen({ navigation, route }) {
       </View>
 
       <View style={styles.footer}>
-        <BlurView intensity={30} tint="dark" style={styles.glassPanel}>
-          <TouchableOpacity 
-            style={styles.statItem}
-            onPress={() => navigation.navigate('Servers')}
-          >
-            <Text style={styles.statLabel}>SERVER REGION</Text>
-            <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>{selectedServer.name || 'Optimal Node'}</Text>
-              <Text style={styles.statSubValue}>{selectedServer.city || 'Selecting...'}, {selectedServer.countryCode || 'Global'}</Text>
-            </View>
-          </TouchableOpacity>
-          
-          <View style={styles.divider} />
-
+        <TouchableOpacity
+          style={styles.glassPanel}
+          onPress={() => navigation.navigate('Servers')}
+          activeOpacity={0.75}
+        >
           <View style={styles.statItem}>
-            <Text style={styles.statLabel}>SECURITY PROTOCOL</Text>
-            <View style={styles.statValueContainer}>
-              <Text style={styles.statValue}>Standard AES-256</Text>
-              <Text style={styles.statSubValue}>{isConnected ? 'Connection Active' : 'Standby'}</Text>
-            </View>
+            <Text style={styles.statLabel}>SERVER REGION</Text>
+            <Text style={styles.statValue}>{selectedServer.name || 'Optimal Node'}</Text>
+            <Text style={styles.statSubValue}>{selectedServer.city || 'Selecting...'}, {selectedServer.countryCode || 'Global'}</Text>
           </View>
-        </BlurView>
+          <Text style={styles.changeServerHint}>TAP TO CHANGE</Text>
+        </TouchableOpacity>
         
         <View style={styles.ipContainer}>
            <View style={styles.ipSection}>
@@ -394,7 +385,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 16,
   },
   headerInfo: {
     alignItems: 'center',
@@ -443,7 +434,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   displayStatus: {
-    fontSize: 52, 
+    fontSize: 38,
     fontFamily: theme.fonts.display,
     color: theme.colors.onBackground,
     fontWeight: '900',
@@ -464,18 +455,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   connectOuter: {
-    width: width * 0.65,
-    height: width * 0.65,
-    borderRadius: width * 0.325,
-    padding: 12,
+    width: width * 0.52,
+    height: width * 0.52,
+    borderRadius: width * 0.26,
+    padding: 10,
     backgroundColor: theme.colors.surfaceContainerHigh,
     shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 40,
-    elevation: 25,
+    shadowRadius: 30,
+    elevation: 20,
   },
   pulseContainer: {
     flex: 1,
-    borderRadius: width * 0.325,
+    borderRadius: width * 0.26,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -496,13 +487,15 @@ const styles = StyleSheet.create({
   },
   glassPanel: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: 24,
-    padding: 24,
-    overflow: 'hidden',
+    borderRadius: 18,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    marginBottom: 20,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    marginBottom: 14,
   },
   statItem: {
     flex: 1,
@@ -513,10 +506,10 @@ const styles = StyleSheet.create({
     color: theme.colors.onSurfaceVariant,
     fontWeight: '900',
     letterSpacing: 1,
-    marginBottom: 10,
+    marginBottom: 5,
   },
   statValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurface,
     fontWeight: '800',
@@ -525,12 +518,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: theme.fonts.body,
     color: theme.colors.onSurfaceVariant,
-    marginTop: 3,
+    marginTop: 2,
   },
-  divider: {
-    width: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    marginHorizontal: 20,
+  changeServerHint: {
+    fontSize: 8,
+    fontFamily: theme.fonts.label,
+    color: theme.colors.primary,
+    fontWeight: '900',
+    letterSpacing: 1,
+    opacity: 0.7,
   },
   ipContainer: {
     flexDirection: 'row',

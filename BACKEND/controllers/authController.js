@@ -151,9 +151,9 @@ exports.forgotPassword = async (req, res) => {
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; 
 
-    await user.save();
+    await user.save({ validateBeforeSave: false });
 
-    
+
     try {
       const emailTemplate = passwordResetEmail(resetToken);
       await sendEmail({
@@ -167,7 +167,7 @@ exports.forgotPassword = async (req, res) => {
     } catch (err) {
       user.resetPasswordToken = undefined;
       user.resetPasswordExpire = undefined;
-      await user.save();
+      await user.save({ validateBeforeSave: false });
       return res.status(500).json({ msg: 'Email could not be sent' });
     }
   } catch (err) {

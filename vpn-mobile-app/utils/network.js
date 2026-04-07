@@ -1,7 +1,7 @@
 export const getPublicIP = async () => {
     try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+        const timeout = setTimeout(() => controller.abort(), 3000); // 3 second timeout
         
         const response = await fetch('https://api.ipify.org?format=json', {
             signal: controller.signal
