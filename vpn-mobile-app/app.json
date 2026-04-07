@@ -40,15 +40,15 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "fc1604be-b5d3-4d73-8196-8412fa1422d1"
+        "projectId": "58da0708-7c3c-4225-9fd7-9a8d52f13ed7"
       }
     },
-    "owner": "zarin-helpdesk",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/fc1604be-b5d3-4d73-8196-8412fa1422d1"
-    }
+      "url": "https://u.expo.dev/"
+    },
+    "owner": "testingvpnapp"
   }
 }
