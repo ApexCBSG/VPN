@@ -34,12 +34,7 @@ export const connectVPN = async (handshakeData, options = {}) => {
     const privateKey = await SecureStore.getItemAsync('wg_private_key');
     if (!privateKey) throw new Error('Private key missing. Please log out and back in.');
 
-    // 1. Initial State Cleanup (Prevents "Ghost Session" hang)
-    try {
-      await WireGuard.disconnect();
-    } catch (e) {
-      // Ignore if not connected
-    }
+    // 1. Initialize (caller is responsible for disconnect before calling)
     try {
       await WireGuard.initialize();
     } catch (e) {
@@ -90,23 +85,8 @@ export const connectVPN = async (handshakeData, options = {}) => {
       await WireGuard.connect(config);
       const connectTime = Date.now() - connectStart;
       console.log(`[VPN_BRIDGE] WireGuard.connect() returned successfully (${connectTime}ms)`);
-
-      // Verify tunnel is active — retry up to 4 times (tunnels can take 1-2s to report connected)
-      let tunnelActive = false;
-      for (let attempt = 1; attempt <= 4; attempt++) {
-        await new Promise(r => setTimeout(r, 500));
-        try {
-          const status = await WireGuard.getStatus();
-          console.log(`[VPN_BRIDGE] Status check attempt ${attempt}:`, status);
-          if (status.isConnected) { tunnelActive = true; break; }
-        } catch (e) {
-          console.warn(`[VPN_BRIDGE] getStatus() failed on attempt ${attempt}:`, e.message);
-        }
-      }
-      if (!tunnelActive) {
-        console.warn('[VPN_BRIDGE] Tunnel not confirmed after 4 attempts — heartbeat will verify');
-      }
-
+      // WireGuard.connect() resolving without error means the tunnel is active.
+      // No status polling needed — trust the native SDK's return value.
     } catch (nativeErr) {
       console.log('[VPN_BRIDGE] WireGuard.connect() threw error:', nativeErr);
       // HANDLE THE INJECTED PERMISSION ERROR

@@ -24,6 +24,7 @@ import VPNSettingsScreen from './screens/VPNSettingsScreen';
 import { theme } from './styles/theme';
 import { SubscriptionProvider } from './context/SubscriptionContext';
 import { VPNSettingsProvider } from './context/VPNSettingsContext';
+import { prewarmVPN } from './utils/vpnPrewarm';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -79,9 +80,20 @@ export default function App() {
   React.useEffect(() => {
     async function checkAuth() {
       try {
-        const token = await SecureStore.getItemAsync('userToken');
+        const [token, lastServerRaw, pubKey] = await Promise.all([
+          SecureStore.getItemAsync('userToken'),
+          SecureStore.getItemAsync('vpn_last_server'),
+          SecureStore.getItemAsync('wg_public_key'),
+        ]);
         if (token) {
           setInitialRoute('Main');
+          // Pre-warm VPN config in background so first connect is instant
+          if (pubKey && lastServerRaw) {
+            try {
+              const lastServer = JSON.parse(lastServerRaw);
+              if (lastServer?._id) prewarmVPN(token, lastServer, pubKey).catch(() => {});
+            } catch (_) {}
+          }
         }
       } catch (e) {
         // Fallback to login

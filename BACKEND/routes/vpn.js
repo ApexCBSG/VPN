@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { connectNode, disconnectNode } = require('../controllers/vpnController');
+const { connectNode, disconnectNode, preauthNode } = require('../controllers/vpnController');
 const { auth } = require('../middlewares/authMiddleware');
 
 
 
 
+router.post('/preauth', auth, preauthNode);
 router.post('/connect', auth, connectNode);
 
 

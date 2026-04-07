@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const { warmConnectionPool } = require('./controllers/vpnController');
 require('dotenv').config();
 
 const app = express();
@@ -50,4 +51,8 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+  // Warm SSH connections to all active nodes so first user connect is fast
+  warmConnectionPool();
+});
