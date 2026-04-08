@@ -290,15 +290,21 @@ export default function DashboardScreen({ navigation, route }) {
         return;
       }
 
-      // 2. Ensure WireGuard keys exist
+      // 2. Ensure WireGuard keys exist — generate ONCE, never overwrite
       let clientPubKey = storedPubKey;
       if (!clientPubKey || !storedPrivKey) {
         const { publicKey, privateKey } = generateKeyPair();
-        await Promise.all([
-          SecureStore.setItemAsync('wg_public_key', publicKey),
-          SecureStore.setItemAsync('wg_private_key', privateKey),
-        ]);
-        clientPubKey = publicKey;
+        // Write both atomically; if one fails, clear both so next attempt regenerates cleanly
+        try {
+          await SecureStore.setItemAsync('wg_private_key', privateKey);
+          await SecureStore.setItemAsync('wg_public_key', publicKey);
+          clientPubKey = publicKey;
+          console.log('[SECURITY] Generated new persistent WireGuard keys');
+        } catch (e) {
+          await SecureStore.deleteItemAsync('wg_public_key').catch(() => {});
+          await SecureStore.deleteItemAsync('wg_private_key').catch(() => {});
+          throw new Error('Failed to save WireGuard keys: ' + e.message);
+        }
       }
 
       // 3. Resolve target server
@@ -371,11 +377,22 @@ export default function DashboardScreen({ navigation, route }) {
       setIsConnected(true);
       isConnectedRef.current = true;
 
-      // Fetch display IP in background
-      getPublicIP().then(ip => { if (ip) setPublicIP(ip); }).catch(() => {});
-
       // Pre-warm for next reconnect
       prewarmVPN(token, targetServer, clientPubKey).catch(() => {});
+
+      // Fetch gateway IP — retry every 3s for up to 30s.
+      // The WireGuard UDP handshake completes a few seconds after connect() resolves.
+      (async () => {
+        for (let attempt = 1; attempt <= 10; attempt++) {
+          await new Promise(r => setTimeout(r, 3000));
+          if (!isConnectedRef.current) break; // user disconnected — stop
+          try {
+            const ip = await getPublicIP();
+            if (ip) { setPublicIP(ip); break; }
+          } catch (_) {}
+          console.log(`[IP_FETCH] Attempt ${attempt}/10 — retrying...`);
+        }
+      })();
 
     } catch (error) {
       console.error('[CONNECT] Error:', error);

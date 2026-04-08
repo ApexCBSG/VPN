@@ -160,9 +160,10 @@ exports.preauthNode = async (req, res) => {
 
 /**
  * POST /api/vpn/connect
- * Returns config immediately. SSH runs async in background — never blocks the response.
- * WireGuard retries the initial handshake for several minutes, so the peer
- * will be authorized on the server within seconds of the client tunnel starting.
+ * - Already-authorized peer (same key): returns config instantly, no SSH.
+ * - New peer or changed key: runs SSH first (blocks), then returns config.
+ *   This ensures the server-side peer is ready before WireGuard starts its
+ *   UDP handshake — no race condition, no waiting for WireGuard retries.
  */
 exports.connectNode = async (req, res) => {
   const { nodeId, publicKey } = req.body;
@@ -190,21 +191,23 @@ exports.connectNode = async (req, res) => {
 
     if (keyChanged) peer.publicKey = publicKey;
 
-    // ─── Return config immediately — never wait for SSH ───────────────────────
-    // SSH runs async in background. WireGuard client will retry the UDP
-    // handshake automatically until the server-side peer is authorized.
-    console.log(`[HANDSHAKE_OK] User ${userId} authorized on node ${node.name} at ${internalIp}`);
-    res.json({ msg: 'Tunnel established successfully', config: buildConfig(node, internalIp) });
-
-    // ─── Background work (non-blocking) ──────────────────────────────────────
     if (needsSsh) {
+      // New peer or key rotation — SSH must complete BEFORE we return config,
+      // so the peer is authorized on the WireGuard server before the client
+      // starts its UDP handshake. SSH pool is warm so this takes ~1-2s.
       const sshCommand = buildPeerSshCommand(publicKey, internalIp);
-      runSshCommand(node, sshCommand).catch(e =>
-        console.error('[CONNECT] Background SSH failed:', e.message)
-      );
+      try {
+        await runSshCommand(node, sshCommand);
+      } catch (sshErr) {
+        console.error('[CONNECT] SSH failed:', sshErr.message);
+        return res.status(503).json({ msg: 'VPN node unreachable. Try another region.' });
+      }
     } else {
       console.log(`[CONNECT] Peer already authorized for user ${userId} — no SSH needed`);
     }
+
+    console.log(`[HANDSHAKE_OK] User ${userId} authorized on node ${node.name} at ${internalIp}`);
+    res.json({ msg: 'Tunnel established successfully', config: buildConfig(node, internalIp) });
 
     // Log and load update are fast DB ops — fine to run after response
     const log = new UsageLog({ userId, nodeId, action: 'connected', bytesIn: 0, bytesOut: 0 });
