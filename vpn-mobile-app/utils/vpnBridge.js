@@ -44,7 +44,7 @@ export const connectVPN = async (handshakeData, options = {}) => {
 
     // 2. Parse Endpoint
     const [serverAddress, portStr] = (handshakeData.endpoint || '').split(':');
-    const serverPort = parseInt(portStr, 10) || 51820;
+    const serverPort = parseInt(portStr, 10) || 443;
 
     if (!serverAddress) {
       throw new Error('Invalid endpoint format: ' + handshakeData.endpoint);

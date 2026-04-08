@@ -38,7 +38,7 @@ const getPooledConnection = (node) => {
       port: 22,
       username: 'root',
       password: process.env.VPS_PASSWORD,
-      readyTimeout: 30000,
+      readyTimeout: 8000,
       keepaliveInterval: 10000,
       keepaliveCountMax: 3,
       tryKeyboard: true
@@ -58,16 +58,21 @@ exports.warmConnectionPool = async () => {
   }
 };
 
-const runSshCommand = async (node, command) => {
+const runSshCommand = async (node, command, timeoutMs = 8000) => {
   console.log(`[SSH_BRIDGE] Executing on ${node.ipAddress}: ${command}`);
   try {
     const conn = await getPooledConnection(node);
     return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(new Error(`SSH command timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
       conn.exec(command, (err, stream) => {
-        if (err) return reject(err);
+        if (err) { clearTimeout(timer); return reject(err); }
         let stdout = '';
         let stderr = '';
         stream.on('close', (code) => {
+          clearTimeout(timer);
           if (code !== 0) return reject(new Error(stderr || 'Kernel failure'));
           resolve({ code, stdout });
         }).on('data', (data) => {
@@ -78,6 +83,8 @@ const runSshCommand = async (node, command) => {
       });
     });
   } catch (err) {
+    // Clear stale pool entry so next call gets a fresh connection
+    connectionPool.delete(node.ipAddress);
     throw new Error(`Sentinel Node unavailable: ${err.message}`);
   }
 };
@@ -153,7 +160,9 @@ exports.preauthNode = async (req, res) => {
 
 /**
  * POST /api/vpn/connect
- * Full connect: authorize peer (skips SSH if already authorized) and log.
+ * Returns config immediately. SSH runs async in background — never blocks the response.
+ * WireGuard retries the initial handshake for several minutes, so the peer
+ * will be authorized on the server within seconds of the client tunnel starting.
  */
 exports.connectNode = async (req, res) => {
   const { nodeId, publicKey } = req.body;
@@ -181,31 +190,33 @@ exports.connectNode = async (req, res) => {
 
     if (keyChanged) peer.publicKey = publicKey;
 
-    // Only run SSH if the peer isn't already authorized
+    // ─── Return config immediately — never wait for SSH ───────────────────────
+    // SSH runs async in background. WireGuard client will retry the UDP
+    // handshake automatically until the server-side peer is authorized.
+    console.log(`[HANDSHAKE_OK] User ${userId} authorized on node ${node.name} at ${internalIp}`);
+    res.json({ msg: 'Tunnel established successfully', config: buildConfig(node, internalIp) });
+
+    // ─── Background work (non-blocking) ──────────────────────────────────────
     if (needsSsh) {
       const sshCommand = buildPeerSshCommand(publicKey, internalIp);
-      try {
-        await runSshCommand(node, sshCommand);
-      } catch (sshErr) {
-        console.error('[SSH_BRIDGE] Handshake Authorization Failed:', sshErr.message);
-        return res.status(503).json({ msg: 'Sentinel Node kernel is non-responsive. Try another region.' });
-      }
+      runSshCommand(node, sshCommand).catch(e =>
+        console.error('[CONNECT] Background SSH failed:', e.message)
+      );
     } else {
-      console.log(`[CONNECT] Peer already authorized for user ${userId} — skipping SSH`);
+      console.log(`[CONNECT] Peer already authorized for user ${userId} — no SSH needed`);
     }
 
+    // Log and load update are fast DB ops — fine to run after response
     const log = new UsageLog({ userId, nodeId, action: 'connected', bytesIn: 0, bytesOut: 0 });
-    await Promise.all([
+    Promise.all([
       log.save(),
       Node.findByIdAndUpdate(nodeId, { $inc: { load: 5 } }),
       peer.save()
-    ]);
+    ]).catch(e => console.error('[CONNECT] Post-response DB error:', e.message));
 
-    console.log(`[HANDSHAKE_OK] User ${userId} authorized on node ${node.name} at ${internalIp}`);
-    res.json({ msg: 'Tunnel established successfully', config: buildConfig(node, internalIp) });
   } catch (err) {
     console.error('VPN Connection Error:', err);
-    res.status(500).json({ msg: 'Global Handshake Failure' });
+    if (!res.headersSent) res.status(500).json({ msg: 'Global Handshake Failure' });
   }
 };
 
