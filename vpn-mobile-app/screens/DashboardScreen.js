@@ -8,11 +8,13 @@ import {
   Dimensions,
   ActivityIndicator,
   Alert,
-  AppState
+  AppState,
+  NativeEventEmitter,
+  NativeModules,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { theme } from '../styles/theme';
-import { Settings, Globe, Power, ShieldCheck, ShieldAlert } from 'lucide-react-native';
+import { Settings, Globe, Power, ShieldCheck, ShieldAlert, WifiOff } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
 import { generateKeyPair } from '../utils/wireguard';
@@ -24,8 +26,12 @@ import { useVPNSettings } from '../context/VPNSettingsContext';
 
 const { width } = Dimensions.get('window');
 
+// Reconnect backoff delays in ms: attempt 1→0s, 2→2s, 3→5s, 4→10s, 5→20s
+const RECONNECT_DELAYS = [0, 2000, 5000, 10000, 20000];
+const MAX_RECONNECT_ATTEMPTS = 5;
+
 export default function DashboardScreen({ navigation, route }) {
-  const { autoConnect, splitTunnelEnabled, splitTunnelApps, setLastServer, lastServer } = useVPNSettings();
+  const { autoConnect, killSwitch, splitTunnelEnabled, splitTunnelApps, setLastServer, lastServer } = useVPNSettings();
 
   const [isConnected, setIsConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -35,9 +41,157 @@ export default function DashboardScreen({ navigation, route }) {
   const [pendingConnection, setPendingConnection] = useState(null);
   const [debugInfo, setDebugInfo] = useState('');
   const [connectedNodeId, setConnectedNodeId] = useState(null);
-  const connectingRef = useRef(false);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
-  // Fetch initial IP and trigger pre-warm on mount
+  // Refs to access latest state inside event callbacks without stale closures
+  const connectingRef = useRef(false);
+  const isConnectedRef = useRef(false);
+  const userDisconnectedRef = useRef(false); // true when user manually taps disconnect
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef(null);
+  const lastConnectParamsRef = useRef(null); // stores { config, targetServer, vpnOptions, token, clientPubKey }
+
+  // Keep refs in sync with state
+  useEffect(() => { isConnectedRef.current = isConnected; }, [isConnected]);
+  useEffect(() => { reconnectAttemptRef.current = reconnectAttempt; }, [reconnectAttempt]);
+
+  // ─── Native VPN state event listener ───────────────────────────────────────
+  // The native WireGuardVpnModule emits 'vpnStateChanged' whenever the tunnel
+  // state changes (UP → DOWN, DOWN → UP, ERROR, etc.)
+  useEffect(() => {
+    const { WireGuardVpnModule } = NativeModules;
+    if (!WireGuardVpnModule) return;
+
+    const emitter = new NativeEventEmitter(WireGuardVpnModule);
+    const subscription = emitter.addListener('vpnStateChanged', (event) => {
+      console.log('[VPN_EVENT] vpnStateChanged:', event);
+      const { tunnelState } = event;
+
+      if ((tunnelState === 'INACTIVE' || tunnelState === 'ERROR') && isConnectedRef.current) {
+        // Tunnel dropped while we expected it to be up
+        if (!userDisconnectedRef.current) {
+          console.log('[VPN_EVENT] Unexpected tunnel drop detected — initiating reconnect');
+          handleUnexpectedDrop();
+        } else {
+          // User tapped disconnect — this is expected
+          console.log('[VPN_EVENT] Tunnel down after user disconnect — expected');
+        }
+      } else if (tunnelState === 'ACTIVE' && !isConnectedRef.current) {
+        // Tunnel came back up (e.g. after reconnect)
+        console.log('[VPN_EVENT] Tunnel active');
+        setIsConnected(true);
+        setIsReconnecting(false);
+        setDebugInfo('');
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  // ─── Handle unexpected VPN drop ────────────────────────────────────────────
+  const handleUnexpectedDrop = () => {
+    setIsConnected(false);
+    isConnectedRef.current = false;
+    setPublicIP(null);
+
+    const attempt = reconnectAttemptRef.current;
+    if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+      console.log('[RECONNECT] Max attempts reached');
+      setIsReconnecting(false);
+      setReconnectAttempt(0);
+      reconnectAttemptRef.current = 0;
+      setDebugInfo('Reconnect failed after 5 attempts');
+
+      if (killSwitch) {
+        Alert.alert(
+          'Kill Switch Active',
+          'VPN connection was lost and could not be restored. Your internet is blocked until VPN reconnects.\n\nTap "Try Again" to reconnect.',
+          [{ text: 'Try Again', onPress: () => startReconnect() }]
+        );
+      }
+      return;
+    }
+
+    setIsReconnecting(true);
+    const delay = RECONNECT_DELAYS[attempt] ?? 20000;
+    const nextAttempt = attempt + 1;
+    setReconnectAttempt(nextAttempt);
+    reconnectAttemptRef.current = nextAttempt;
+
+    console.log(`[RECONNECT] Attempt ${nextAttempt}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
+    setDebugInfo(`Reconnecting... (${nextAttempt}/${MAX_RECONNECT_ATTEMPTS})`);
+
+    clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = setTimeout(() => startReconnect(), delay);
+  };
+
+  const startReconnect = async () => {
+    if (!lastConnectParamsRef.current) {
+      console.warn('[RECONNECT] No stored connection params — cannot reconnect');
+      setIsReconnecting(false);
+      return;
+    }
+
+    const { config, targetServer, vpnOptions, token, clientPubKey } = lastConnectParamsRef.current;
+    console.log('[RECONNECT] Firing reconnect with stored params');
+
+    connectingRef.current = true;
+    setConnecting(true);
+
+    try {
+      await disconnectVPN().catch(() => {});
+
+      // Re-fetch fresh config in case the cached one is stale
+      let freshConfig = getCachedConfig(targetServer._id);
+      if (!freshConfig) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const response = await fetch(`${API_URL}/vpn/connect`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+          body: JSON.stringify({ nodeId: targetServer._id, publicKey: clientPubKey }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (response.ok) {
+          const data = await response.json();
+          freshConfig = data.config;
+        }
+      }
+      const connectConfig = freshConfig || config;
+
+      const vpnPromise = connectVPN(connectConfig, vpnOptions);
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 15000)
+      );
+
+      const result = await Promise.race([vpnPromise, timeoutPromise]);
+
+      if (result === 'CONNECTED') {
+        console.log('[RECONNECT] Success');
+        setIsConnected(true);
+        isConnectedRef.current = true;
+        setIsReconnecting(false);
+        setReconnectAttempt(0);
+        reconnectAttemptRef.current = 0;
+        setDebugInfo('');
+        getPublicIP().then(ip => { if (ip) setPublicIP(ip); }).catch(() => {});
+        prewarmVPN(token, targetServer, clientPubKey).catch(() => {});
+      } else {
+        throw new Error('Reconnect result: ' + result);
+      }
+    } catch (err) {
+      console.warn('[RECONNECT] Failed:', err.message);
+      // Trigger next backoff attempt via handleUnexpectedDrop
+      handleUnexpectedDrop();
+    } finally {
+      connectingRef.current = false;
+      setConnecting(false);
+    }
+  };
+
+  // ─── Init: fetch IP + pre-warm ──────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       const [ip, token, pubKey] = await Promise.all([
@@ -47,16 +201,20 @@ export default function DashboardScreen({ navigation, route }) {
       ]);
       if (ip) setInitialIP(ip);
 
-      // Pre-warm the config for the last/default server in background
       const server = route.params?.selectedServer?._id ? route.params.selectedServer : lastServer;
       if (token && server?._id && pubKey) {
         prewarmVPN(token, server, pubKey).catch(() => {});
       }
     };
     init();
+
+    return () => {
+      // Clear any pending reconnect timer on unmount
+      clearTimeout(reconnectTimerRef.current);
+    };
   }, []);
 
-  // Auto-connect on launch
+  // ─── Auto-connect on launch ─────────────────────────────────────────────────
   useEffect(() => {
     if (autoConnect && !autoConnectTriggered && !isConnected && !connecting) {
       setAutoConnectTriggered(true);
@@ -65,7 +223,7 @@ export default function DashboardScreen({ navigation, route }) {
     }
   }, [autoConnect, autoConnectTriggered]);
 
-  // Resume after Android VPN permission dialog
+  // ─── Resume after Android VPN permission dialog ─────────────────────────────
   useEffect(() => {
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
@@ -79,11 +237,21 @@ export default function DashboardScreen({ navigation, route }) {
     }
   };
 
+  // ─── Main connect/disconnect toggle ────────────────────────────────────────
   const handleToggleConnection = async () => {
     if (connectingRef.current) return;
 
-    if (isConnected) {
+    if (isConnected || isReconnecting) {
+      // User manually disconnecting — stop any reconnect loop
+      userDisconnectedRef.current = true;
+      clearTimeout(reconnectTimerRef.current);
+      setIsReconnecting(false);
+      setReconnectAttempt(0);
+      reconnectAttemptRef.current = 0;
+      lastConnectParamsRef.current = null;
+
       await disconnectVPN().catch(() => {});
+
       if (connectedNodeId) {
         SecureStore.getItemAsync('userToken').then(token => {
           if (token) fetch(`${API_URL}/vpn/disconnect`, {
@@ -93,19 +261,23 @@ export default function DashboardScreen({ navigation, route }) {
           }).catch(() => {});
         });
       }
+
       setIsConnected(false);
+      isConnectedRef.current = false;
       setPublicIP(null);
       setDebugInfo('');
       setConnectedNodeId(null);
       return;
     }
 
+    // Reset manual disconnect flag before new connect
+    userDisconnectedRef.current = false;
     connectingRef.current = true;
     setConnecting(true);
     setDebugInfo('');
 
     try {
-      // 1. Parallel reads — no sequential waiting
+      // 1. Parallel reads
       const [token, storedPubKey, storedPrivKey] = await Promise.all([
         SecureStore.getItemAsync('userToken'),
         SecureStore.getItemAsync('wg_public_key'),
@@ -127,7 +299,6 @@ export default function DashboardScreen({ navigation, route }) {
           SecureStore.setItemAsync('wg_private_key', privateKey),
         ]);
         clientPubKey = publicKey;
-        console.log('[SECURITY] Generated new persistent keys');
       }
 
       // 3. Resolve target server
@@ -146,10 +317,9 @@ export default function DashboardScreen({ navigation, route }) {
         }
       }
 
-      // 4. Get config — use cache (pre-warmed) or fetch now
+      // 4. Get config — use pre-warmed cache or fetch
       let config = getCachedConfig(targetServer._id);
       if (!config) {
-        console.log('[CONNECT] No cached config — fetching from backend...');
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5000);
         const response = await fetch(`${API_URL}/vpn/connect`, {
@@ -162,19 +332,21 @@ export default function DashboardScreen({ navigation, route }) {
         const data = await response.json();
         if (!response.ok) throw new Error(data.msg || 'Handshake failed.');
         config = data.config;
-      } else {
-        console.log('[CONNECT] Using pre-warmed config — skipping backend round-trip');
       }
 
-      await setLastServer(targetServer);
-      setConnectedNodeId(targetServer._id);
-
-      // 5. Activate native WireGuard tunnel
+      // 5. Build VPN options (split tunneling)
       const vpnOptions = {};
       if (splitTunnelEnabled && splitTunnelApps.length > 0) {
         vpnOptions.excludedApps = splitTunnelApps;
       }
 
+      // Store params for auto-reconnect
+      lastConnectParamsRef.current = { config, targetServer, vpnOptions, token, clientPubKey };
+
+      await setLastServer(targetServer);
+      setConnectedNodeId(targetServer._id);
+
+      // 6. Activate native WireGuard tunnel
       const vpnPromise = connectVPN(config, vpnOptions);
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('VPN tunnel activation timeout (15s)')), 15000)
@@ -191,23 +363,18 @@ export default function DashboardScreen({ navigation, route }) {
 
       if (vpnResult === 'PERMISSION_PENDING') {
         setPendingConnection(config);
-        Alert.alert(
-          'VPN Permission',
-          'Tap "Accept" on the system dialog that appears.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('VPN Permission', 'Tap "Accept" on the system dialog that appears.', [{ text: 'OK' }]);
         return;
       }
 
-      // 6. Mark connected immediately — trust the native WireGuard layer
+      // 7. Mark connected — trust the native layer
       setIsConnected(true);
+      isConnectedRef.current = true;
 
-      // 7. Fetch gateway IP in background for display only — does NOT gate UI
-      getPublicIP().then(ip => {
-        if (ip) setPublicIP(ip);
-      }).catch(() => {});
+      // Fetch display IP in background
+      getPublicIP().then(ip => { if (ip) setPublicIP(ip); }).catch(() => {});
 
-      // Pre-warm for next time in background
+      // Pre-warm for next reconnect
       prewarmVPN(token, targetServer, clientPubKey).catch(() => {});
 
     } catch (error) {
@@ -221,6 +388,27 @@ export default function DashboardScreen({ navigation, route }) {
 
   const selectedServer = route.params?.selectedServer || { name: 'Auto Selection', city: 'Optimal Node', countryCode: 'US' };
 
+  // UI status derived values
+  const buttonDisabled = connecting;
+  const showReconnecting = isReconnecting && !connecting;
+  const chipColor = isConnected
+    ? theme.colors.primary
+    : isReconnecting
+      ? 'rgba(255,179,0,0.15)'
+      : 'rgba(255,113,108,0.1)';
+  const chipTextColor = isConnected
+    ? theme.colors.background
+    : isReconnecting
+      ? '#ffb300'
+      : theme.colors.error;
+  const chipLabel = isConnected
+    ? 'SECURED'
+    : isReconnecting
+      ? 'RECONNECTING...'
+      : killSwitch
+        ? 'BLOCKED — NO VPN'
+        : 'NOT PROTECTED';
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="light-content" />
@@ -233,8 +421,8 @@ export default function DashboardScreen({ navigation, route }) {
 
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle}>VPN DASHBOARD</Text>
-            <Text style={[styles.headerStatus, isConnected && { color: theme.colors.primary }]}>
-              {isConnected ? 'CONNECTION ACTIVE' : 'NETWORK DISCONNECTED'}
+            <Text style={[styles.headerStatus, isConnected && { color: theme.colors.primary }, isReconnecting && { color: '#ffb300' }]}>
+              {isConnected ? 'CONNECTION ACTIVE' : isReconnecting ? 'RESTORING TUNNEL...' : 'NETWORK DISCONNECTED'}
             </Text>
           </View>
 
@@ -244,26 +432,29 @@ export default function DashboardScreen({ navigation, route }) {
         </View>
 
         <View style={styles.statusContainer}>
-          <View style={[
-            styles.statusChip,
-            { backgroundColor: isConnected ? theme.colors.primary : 'rgba(255, 113, 108, 0.1)' }
-          ]}>
+          <View style={[styles.statusChip, { backgroundColor: chipColor }]}>
             {isConnected
               ? <ShieldCheck size={12} color={theme.colors.background} />
-              : <ShieldAlert size={12} color={theme.colors.error} />}
-            <Text style={[
-              styles.statusChipText,
-              isConnected ? { color: theme.colors.background } : { color: theme.colors.error }
-            ]}>
-              {isConnected ? 'SECURED' : 'NOT PROTECTED'}
+              : isReconnecting
+                ? <ShieldAlert size={12} color="#ffb300" />
+                : killSwitch
+                  ? <WifiOff size={12} color={theme.colors.error} />
+                  : <ShieldAlert size={12} color={theme.colors.error} />}
+            <Text style={[styles.statusChipText, { color: chipTextColor }]}>
+              {chipLabel}
             </Text>
           </View>
 
           <Text style={styles.displayStatus}>
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected ? 'Connected' : isReconnecting ? 'Reconnecting' : 'Disconnected'}
           </Text>
 
-          {debugInfo ? (
+          {showReconnecting && (
+            <Text style={[styles.bridgeInfo, { color: '#ffb300' }]}>
+              {debugInfo || 'Restoring secure connection...'}
+            </Text>
+          )}
+          {!showReconnecting && debugInfo ? (
             <Text style={[styles.bridgeInfo, { color: '#ff6b6b', marginTop: 12 }]}>
               {debugInfo}
             </Text>
@@ -276,13 +467,20 @@ export default function DashboardScreen({ navigation, route }) {
           activeOpacity={0.8}
           style={[
             styles.connectOuter,
-            isConnected && { shadowColor: theme.colors.primary, shadowOpacity: 0.3 }
+            isConnected && { shadowColor: theme.colors.primary, shadowOpacity: 0.3 },
+            isReconnecting && { shadowColor: '#ffb300', shadowOpacity: 0.3 },
           ]}
           onPress={handleToggleConnection}
-          disabled={connecting}
+          disabled={buttonDisabled}
         >
           <LinearGradient
-            colors={isConnected ? ['#81ecff', '#004c5a'] : theme.colors.linearGradient}
+            colors={
+              isConnected
+                ? ['#81ecff', '#004c5a']
+                : isReconnecting
+                  ? ['#ffb300', '#4a3a00']
+                  : theme.colors.linearGradient
+            }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.pulseContainer}
@@ -291,7 +489,9 @@ export default function DashboardScreen({ navigation, route }) {
               {connecting
                 ? <ActivityIndicator size="large" color={theme.colors.background} />
                 : <Power size={50} color={theme.colors.background} strokeWidth={2.5} />}
-              <Text style={styles.buttonLabel}>{isConnected ? 'OFF' : 'ON'}</Text>
+              <Text style={styles.buttonLabel}>
+                {isConnected || isReconnecting ? 'OFF' : 'ON'}
+              </Text>
             </View>
           </LinearGradient>
         </TouchableOpacity>
