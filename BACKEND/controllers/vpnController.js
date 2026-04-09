@@ -105,12 +105,7 @@ const buildConfig = (node, internalIp) => ({
   mtu: 1420
 });
 
-/**
- * POST /api/vpn/preauth
- * Pre-authorize the peer and return config immediately.
- * SSH runs in the background — does NOT block the response.
- * If the peer already exists with the same public key, no SSH is needed at all.
- */
+
 exports.preauthNode = async (req, res) => {
   const { nodeId, publicKey } = req.body;
   const userId = req.user.id;
@@ -210,10 +205,11 @@ exports.connectNode = async (req, res) => {
     res.json({ msg: 'Tunnel established successfully', config: buildConfig(node, internalIp) });
 
     // Log and load update are fast DB ops — fine to run after response
+    // Use aggregation pipeline form to clamp load between 0–100 (validators don't run on findByIdAndUpdate)
     const log = new UsageLog({ userId, nodeId, action: 'connected', bytesIn: 0, bytesOut: 0 });
     Promise.all([
       log.save(),
-      Node.findByIdAndUpdate(nodeId, { $inc: { load: 5 } }),
+      Node.findByIdAndUpdate(nodeId, [{ $set: { load: { $min: [{ $add: ['$load', 5] }, 100] } } }]),
       peer.save()
     ]).catch(e => console.error('[CONNECT] Post-response DB error:', e.message));
 
@@ -242,9 +238,8 @@ exports.disconnectNode = async (req, res) => {
       await lastLog.save();
     }
 
-    // Peer entry stays on WireGuard server — no SSH needed on disconnect.
-    // This eliminates ~2-30s of SSH overhead and makes reconnect instant.
-    await Node.findByIdAndUpdate(nodeId, { $inc: { load: -5 } });
+    // Clamp load floor at 0 — use aggregation pipeline (validators don't run on findByIdAndUpdate)
+    await Node.findByIdAndUpdate(nodeId, [{ $set: { load: { $max: [{ $subtract: ['$load', 5] }, 0] } } }]);
     res.json({ msg: 'Tunnel disconnected', duration: lastLog?.duration || 0 });
   } catch (err) {
     console.error('VPN Disconnect Error:', err);

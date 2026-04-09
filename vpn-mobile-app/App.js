@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts, Manrope_400Regular, Manrope_700Bold } from '@expo-google-fonts/manrope';
 import { Inter_400Regular, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
@@ -30,6 +30,11 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function MainTabs() {
+  // Dynamically read the real bottom inset (gesture nav bar height on Android,
+  // home indicator on iPhone) so the tab bar is never hidden behind it.
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = 60 + insets.bottom;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -38,11 +43,9 @@ function MainTabs() {
           backgroundColor: '#111111',
           borderTopWidth: 2,
           borderTopColor: '#76b900',
-          height: 60,
-          paddingBottom: 8,
+          height: tabBarHeight,
+          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 8,
-          // Sits above Android gesture nav bar — no overlap
-          marginBottom: 0,
           elevation: 20,
         },
         tabBarActiveTintColor: theme.colors.primary,
