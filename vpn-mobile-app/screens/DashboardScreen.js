@@ -69,16 +69,20 @@ export default function DashboardScreen({ navigation, route }) {
       const { tunnelState } = event;
 
       if ((tunnelState === 'INACTIVE' || tunnelState === 'ERROR') && isConnectedRef.current) {
-        // Tunnel dropped while we expected it to be up
         if (!userDisconnectedRef.current) {
-          console.log('[VPN_EVENT] Unexpected tunnel drop detected — initiating reconnect');
-          handleUnexpectedDrop();
+          // Small delay to let any in-flight userDisconnectedRef.current = true settle
+          setTimeout(() => {
+            if (!userDisconnectedRef.current) {
+              console.log('[VPN_EVENT] Unexpected tunnel drop — initiating reconnect');
+              handleUnexpectedDrop();
+            } else {
+              console.log('[VPN_EVENT] Tunnel down after user disconnect — expected');
+            }
+          }, 300);
         } else {
-          // User tapped disconnect — this is expected
           console.log('[VPN_EVENT] Tunnel down after user disconnect — expected');
         }
       } else if (tunnelState === 'ACTIVE' && !isConnectedRef.current) {
-        // Tunnel came back up (e.g. after reconnect)
         console.log('[VPN_EVENT] Tunnel active');
         setIsConnected(true);
         setIsReconnecting(false);
@@ -214,9 +218,11 @@ export default function DashboardScreen({ navigation, route }) {
     };
   }, []);
 
-  // ─── Auto-connect on launch ─────────────────────────────────────────────────
+  // ─── Auto-connect on launch (fires exactly once per app session) ────────────
   useEffect(() => {
-    if (autoConnect && !autoConnectTriggered && !isConnected && !connecting) {
+    // Only trigger if: autoConnect enabled, never triggered yet, not already
+    // connected, not connecting, and user has NOT manually disconnected yet
+    if (autoConnect && !autoConnectTriggered && !isConnected && !connecting && !userDisconnectedRef.current) {
       setAutoConnectTriggered(true);
       const timer = setTimeout(() => handleToggleConnection(), 1500);
       return () => clearTimeout(timer);
@@ -242,31 +248,35 @@ export default function DashboardScreen({ navigation, route }) {
     if (connectingRef.current) return;
 
     if (isConnected || isReconnecting) {
-      // User manually disconnecting — stop any reconnect loop
+      // Set the flag BEFORE disconnectVPN() so the vpnStateChanged INACTIVE
+      // event that fires during disconnect is correctly ignored
       userDisconnectedRef.current = true;
       clearTimeout(reconnectTimerRef.current);
+
+      // Update UI immediately — don't wait for native call
+      setIsConnected(false);
+      isConnectedRef.current = false;
       setIsReconnecting(false);
       setReconnectAttempt(0);
       reconnectAttemptRef.current = 0;
       lastConnectParamsRef.current = null;
+      setPublicIP(null);
+      setDebugInfo('');
 
-      await disconnectVPN().catch(() => {});
+      const nodeId = connectedNodeId;
+      setConnectedNodeId(null);
 
-      if (connectedNodeId) {
+      // Native disconnect + backend cleanup in background
+      disconnectVPN().catch(() => {});
+      if (nodeId) {
         SecureStore.getItemAsync('userToken').then(token => {
           if (token) fetch(`${API_URL}/vpn/disconnect`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-            body: JSON.stringify({ nodeId: connectedNodeId })
+            body: JSON.stringify({ nodeId })
           }).catch(() => {});
         });
       }
-
-      setIsConnected(false);
-      isConnectedRef.current = false;
-      setPublicIP(null);
-      setDebugInfo('');
-      setConnectedNodeId(null);
       return;
     }
 

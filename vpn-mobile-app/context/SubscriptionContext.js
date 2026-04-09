@@ -100,6 +100,23 @@ export const SubscriptionProvider = ({ children }) => {
     }
   };
 
+  const restorePurchases = async () => {
+    try {
+      const customerInfo = await Purchases.restorePurchases();
+      if (customerInfo.entitlements.active['premium'] !== undefined) {
+        setEntitlements({ premium: true });
+        Alert.alert('Restored', 'Your premium subscription has been restored.');
+        return true;
+      } else {
+        Alert.alert('Nothing to Restore', 'No active subscriptions found for this account.');
+        return false;
+      }
+    } catch (e) {
+      Alert.alert('Restore Failed', e.message || 'Could not restore purchases.');
+      return false;
+    }
+  };
+
   return (
     <SubscriptionContext.Provider value={{
       entitlements,
@@ -108,6 +125,7 @@ export const SubscriptionProvider = ({ children }) => {
       loading,
       syncIdentity,
       purchasePackage,
+      restorePurchases,
       refresh: updateEntitlements
     }}>
       {children}

@@ -9,7 +9,29 @@ import { API_URL } from '../config';
 export default function VerifyEmailScreen({ navigation, route }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const { email } = route.params;
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const response = await fetch(`${API_URL}/auth/resend-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        Alert.alert('Code Sent', 'A new verification code has been sent to your email.');
+      } else {
+        Alert.alert('Error', data.msg || 'Could not resend code.');
+      }
+    } catch {
+      Alert.alert('Network Error', 'Could not reach the server.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleVerify = async () => {
     if (code.length !== 6) {
@@ -83,8 +105,10 @@ export default function VerifyEmailScreen({ navigation, route }) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.resendButton}>
-          <Text style={styles.resendText}>Didn't receive code? Resend</Text>
+        <TouchableOpacity style={styles.resendButton} onPress={handleResend} disabled={resending}>
+          <Text style={styles.resendText}>
+            {resending ? 'Sending…' : "Didn't receive code? Resend"}
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

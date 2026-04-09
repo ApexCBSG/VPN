@@ -1,12 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator, Image } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
 import { theme } from '../styles/theme';
 import { X, CheckCircle, Zap, Shield, Globe, Star, ArrowRight } from 'lucide-react-native';
 import { useSubscription } from '../context/SubscriptionContext';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function PaywallScreen({ navigation }) {
-  const { offerings, adminOfferings, purchasePackage, loading } = useSubscription();
+  const { offerings, adminOfferings, purchasePackage, restorePurchases, loading } = useSubscription();
 
   const handlePurchase = async (pkg) => {
     const success = await purchasePackage(pkg);
@@ -97,7 +97,7 @@ export default function PaywallScreen({ navigation }) {
           ))}
         </View>
 
-        <TouchableOpacity style={styles.restoreButton} onPress={() => {}}>
+        <TouchableOpacity style={styles.restoreButton} onPress={restorePurchases}>
            <Text style={styles.restoreText}>Restore Purchases</Text>
         </TouchableOpacity>
 

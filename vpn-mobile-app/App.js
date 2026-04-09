@@ -35,11 +35,15 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: theme.colors.surfaceContainerLow,
-          borderTopColor: theme.colors.outlineVariant,
-          height: 85,
-          paddingBottom: 25,
-          paddingTop: 10,
+          backgroundColor: '#111111',
+          borderTopWidth: 2,
+          borderTopColor: '#76b900',
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+          // Sits above Android gesture nav bar — no overlap
+          marginBottom: 0,
+          elevation: 20,
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
